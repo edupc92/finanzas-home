@@ -3,6 +3,7 @@ import { AuthProvider } from './components/layout/AuthProvider'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import { AppLayout } from './components/layout/AppLayout'
 import { AuthPage } from './pages/AuthPage'
+import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TransactionsPage } from './pages/TransactionsPage'
 import { BudgetsPage } from './pages/BudgetsPage'
@@ -18,6 +19,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>

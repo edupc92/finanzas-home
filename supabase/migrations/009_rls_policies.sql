@@ -5,7 +5,7 @@ RETURNS BOOLEAN AS $$
     SELECT 1 FROM household_members
     WHERE household_id = hid AND user_id = auth.uid()
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public;
 
 CREATE OR REPLACE FUNCTION is_household_owner(hid UUID)
 RETURNS BOOLEAN AS $$
@@ -13,7 +13,7 @@ RETURNS BOOLEAN AS $$
     SELECT 1 FROM households
     WHERE id = hid AND owner_id = auth.uid()
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+$$ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public;
 
 -- profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
