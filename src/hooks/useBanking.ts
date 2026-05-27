@@ -60,17 +60,26 @@ export function useBanking() {
   }, [fetchConnections])
 
   async function startBankLink() {
-    if (!activeHouseholdId) return
-    const redirectUri = `${window.location.origin}/bank`
-    const data = await callEdge('bank-connect', {
-      action: 'link',
-      redirectUri,
-      householdId: activeHouseholdId,
-    })
-    if (data.url) {
-      window.location.href = data.url
-    } else {
-      addToast(data.error ?? 'Error al iniciar la conexión', 'error')
+    if (!activeHouseholdId) {
+      addToast('No hay hogar activo', 'error')
+      return
+    }
+    try {
+      const redirectUri = `${window.location.origin}/bank`
+      const data = await callEdge('bank-connect', {
+        action: 'link',
+        redirectUri,
+        householdId: activeHouseholdId,
+      })
+      console.log('[useBanking] bank-connect response:', data)
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        addToast(data.error ?? 'Error al iniciar la conexión', 'error')
+      }
+    } catch (err: any) {
+      console.error('[useBanking] startBankLink error:', err)
+      addToast(`Error: ${err.message}`, 'error')
     }
   }
 
