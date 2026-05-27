@@ -1,0 +1,29 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches:
+      - main
+      - claude/finanzas-hogar-specs-yV5E4
+    paths:
+      - 'supabase/functions/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy bank-connect
+        run: supabase functions deploy bank-connect --project-ref eyovjtemcqrhtngyokyw --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Deploy bank-sync
+        run: supabase functions deploy bank-sync --project-ref eyovjtemcqrhtngyokyw --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
