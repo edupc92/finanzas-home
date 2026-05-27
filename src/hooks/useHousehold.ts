@@ -15,23 +15,11 @@ export function useHousehold() {
   const fetchHouseholds = useCallback(async () => {
     if (!user) return
 
-    const { data: memberRows, error: memberError } = await supabase
-      .from('household_members')
-      .select('household_id')
-      .eq('user_id', user.id)
+    const { data, error } = await supabase.rpc('get_my_households')
 
-    if (memberError || !memberRows?.length) return
+    if (error || !data?.length) return
 
-    const ids = memberRows.map((r: any) => r.household_id)
-
-    const { data: hhData, error: hhError } = await supabase
-      .from('households')
-      .select('*')
-      .in('id', ids)
-
-    if (hhError || !hhData) return
-
-    setHouseholds(hhData as Household[], user.id)
+    setHouseholds(data as Household[], user.id)
   }, [user, setHouseholds])
 
   const fetchMembers = useCallback(async (householdId: string) => {
