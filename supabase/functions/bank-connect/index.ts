@@ -117,7 +117,7 @@ serve(async (req) => {
         .select('id')
         .single()
 
-      if (connErr || !conn) return json({ error: 'Failed to save connection' }, 500)
+      if (connErr || !conn) return json({ error: 'Failed to save connection', detail: connErr?.message, code: connErr?.code }, 500)
 
       // Save accounts
       for (const acct of accounts) {
