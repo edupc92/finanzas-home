@@ -19,12 +19,17 @@ export function useHousehold() {
       .select('household_id, households(*)')
       .eq('user_id', user.id)
 
-    if (error || !data) return
+    if (error) {
+      console.error('[useHousehold] fetchHouseholds error:', error)
+      return
+    }
+    if (!data) return
 
     const hh = data
       .map((row: any) => row.households as Household)
       .filter(Boolean)
 
+    console.log('[useHousehold] households fetched:', hh)
     setHouseholds(hh, user.id)
   }, [user, setHouseholds])
 
