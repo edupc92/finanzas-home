@@ -66,6 +66,7 @@ serve(async (req) => {
     // --- Exchange code for tokens after OAuth redirect ---
     if (body.action === 'callback') {
       const { code, redirectUri, householdId } = body
+      console.log('[callback] householdId:', householdId, 'userId:', user.id)
 
       // Exchange code for tokens
       const tokenRes = await fetch(`${tl.auth}/connect/token`, {
@@ -80,6 +81,7 @@ serve(async (req) => {
         }),
       })
       const tokens = await tokenRes.json()
+      console.log('[callback] token exchange status:', tokenRes.status, 'has_access_token:', !!tokens.access_token)
       if (!tokens.access_token) {
         return json({ error: 'Token exchange failed', detail: tokens }, 502)
       }
@@ -90,6 +92,7 @@ serve(async (req) => {
       })
       const accountsData = await accountsRes.json()
       const accounts: any[] = accountsData.results ?? []
+      console.log('[callback] accounts fetched:', accounts.length, 'raw status:', accountsRes.status)
 
       if (!accounts.length) {
         return json({ error: 'No accounts returned by bank' }, 400)
@@ -97,6 +100,7 @@ serve(async (req) => {
 
       const provider = accounts[0]?.provider ?? {}
       const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString()
+      console.log('[callback] provider:', JSON.stringify(provider))
 
       // Save connection
       const { data: conn, error: connErr } = await admin
@@ -117,6 +121,7 @@ serve(async (req) => {
         .select('id')
         .single()
 
+      console.log('[callback] insert result — conn:', JSON.stringify(conn), 'err:', JSON.stringify(connErr))
       if (connErr || !conn) return json({ error: 'Failed to save connection', detail: connErr?.message, code: connErr?.code }, 500)
 
       // Save accounts
