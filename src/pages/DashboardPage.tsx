@@ -20,12 +20,8 @@ export function DashboardPage() {
 
   if (!activeHouseholdId) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-center px-4">
+      <div className="min-h-screen flex items-center justify-center">
         <Spinner size="lg" className="text-primary" />
-        <p className="text-sm text-muted">Cargando hogar…</p>
-        <p className="text-xs text-muted opacity-60">
-          Si esto tarda más de 5 segundos, abre la consola del navegador (F12) y busca errores que empiecen por [useHousehold].
-        </p>
       </div>
     )
   }
