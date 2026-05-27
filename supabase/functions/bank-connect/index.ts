@@ -1,7 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const GC_BASE = 'https://bankaccountdata.gocardless.com/api/v2'
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -14,18 +13,13 @@ function json(data: unknown, status = 200) {
   })
 }
 
-async function gcToken(): Promise<string> {
-  const res = await fetch(`${GC_BASE}/token/new/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      secret_id: Deno.env.get('GOCARDLESS_SECRET_ID'),
-      secret_key: Deno.env.get('GOCARDLESS_SECRET_KEY'),
-    }),
-  })
-  const data = await res.json()
-  if (!data.access) throw new Error(`GoCardless token error: ${JSON.stringify(data)}`)
-  return data.access
+function tlBase() {
+  const sandbox = Deno.env.get('TRUELAYER_ENV') === 'sandbox'
+  return {
+    auth: sandbox ? 'https://auth.truelayer-sandbox.com' : 'https://auth.truelayer.com',
+    data: sandbox ? 'https://api.truelayer-sandbox.com' : 'https://api.truelayer.com',
+    providers: sandbox ? 'mock' : 'es-ob-all es-oauth-all',
+  }
 }
 
 serve(async (req) => {
@@ -47,97 +41,101 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   )
 
+  const clientId = Deno.env.get('TRUELAYER_CLIENT_ID')!
+  const clientSecret = Deno.env.get('TRUELAYER_CLIENT_SECRET')!
+
   try {
     const body = await req.json()
-    const token = await gcToken()
+    const tl = tlBase()
 
-    // --- List institutions ---
-    if (body.action === 'institutions') {
-      const country = body.country ?? 'ES'
-      const res = await fetch(`${GC_BASE}/institutions/?country=${country}`, {
-        headers: { Authorization: `Bearer ${token}` },
+    // --- Generate auth URL ---
+    if (body.action === 'link') {
+      const { redirectUri, householdId } = body
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: clientId,
+        scope: 'accounts transactions offline_access',
+        redirect_uri: redirectUri,
+        providers: tl.providers,
+        // pass householdId in state so we get it back on redirect
+        state: householdId,
       })
-      const data = await res.json()
-      return json(data)
+      return json({ url: `${tl.auth}/?${params}` })
     }
 
-    // --- Start OAuth flow ---
-    if (body.action === 'create') {
-      const { institutionId, institutionName, householdId, redirectUrl } = body
-      const res = await fetch(`${GC_BASE}/requisitions/`, {
+    // --- Exchange code for tokens after OAuth redirect ---
+    if (body.action === 'callback') {
+      const { code, redirectUri, householdId } = body
+
+      // Exchange code for tokens
+      const tokenRes = await fetch(`${tl.auth}/connect/token`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          redirect: redirectUrl,
-          institution_id: institutionId,
-          reference: `${householdId}:${user.id}:${Date.now()}`,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          code,
         }),
       })
-      const requisition = await res.json()
-      if (!requisition.id) return json({ error: 'GoCardless error', detail: requisition }, 502)
-
-      await admin.from('bank_connections').insert({
-        household_id: householdId,
-        user_id: user.id,
-        institution_id: institutionId,
-        institution_name: institutionName,
-        requisition_id: requisition.id,
-        status: 'pending',
-      })
-
-      return json({ link: requisition.link, requisitionId: requisition.id })
-    }
-
-    // --- Confirm after OAuth redirect ---
-    if (body.action === 'confirm') {
-      const { requisitionId, householdId } = body
-      const res = await fetch(`${GC_BASE}/requisitions/${requisitionId}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const requisition = await res.json()
-
-      if (requisition.status !== 'LN') {
-        return json({ error: 'Bank not yet authorized', status: requisition.status }, 400)
+      const tokens = await tokenRes.json()
+      if (!tokens.access_token) {
+        return json({ error: 'Token exchange failed', detail: tokens }, 502)
       }
 
-      // Fetch account details
-      const accountDetails = await Promise.all(
-        (requisition.accounts ?? []).map(async (accountId: string) => {
-          const detailRes = await fetch(`${GC_BASE}/accounts/${accountId}/details/`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-          const detail = await detailRes.json()
-          return { external_account_id: accountId, ...detail.account }
-        })
-      )
+      // Fetch accounts
+      const accountsRes = await fetch(`${tl.data}/data/v1/accounts`, {
+        headers: { Authorization: `Bearer ${tokens.access_token}` },
+      })
+      const accountsData = await accountsRes.json()
+      const accounts: any[] = accountsData.results ?? []
 
-      // Update connection to active
-      const { data: conn } = await admin
+      if (!accounts.length) {
+        return json({ error: 'No accounts returned by bank' }, 400)
+      }
+
+      const provider = accounts[0]?.provider ?? {}
+      const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString()
+
+      // Save connection
+      const { data: conn, error: connErr } = await admin
         .from('bank_connections')
-        .update({ status: 'active', last_sync_at: new Date().toISOString() })
-        .eq('requisition_id', requisitionId)
+        .insert({
+          household_id: householdId,
+          user_id: user.id,
+          provider: 'truelayer',
+          institution_id: provider.provider_id ?? 'unknown',
+          institution_name: provider.display_name ?? 'Banco',
+          requisition_id: `tl-${Date.now()}`,
+          status: 'active',
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          token_expires_at: expiresAt,
+          last_sync_at: new Date().toISOString(),
+        })
         .select('id')
         .single()
 
-      if (!conn) return json({ error: 'Connection not found' }, 404)
+      if (connErr || !conn) return json({ error: 'Failed to save connection' }, 500)
 
-      // Upsert accounts
-      for (const acct of accountDetails) {
+      // Save accounts
+      for (const acct of accounts) {
         await admin.from('bank_accounts').upsert(
           {
             bank_connection_id: conn.id,
             household_id: householdId,
-            external_account_id: acct.external_account_id,
-            iban: acct.iban ?? null,
-            name: acct.name ?? acct.product ?? 'Cuenta',
+            external_account_id: acct.account_id,
+            iban: acct.account_number?.iban ?? null,
+            name: acct.display_name ?? 'Cuenta',
             currency: acct.currency ?? 'EUR',
             is_active: true,
           },
-          { onConflict: 'external_account_id,bank_connection_id' }
+          { onConflict: 'bank_connection_id,external_account_id' }
         )
       }
 
-      return json({ success: true, accountCount: accountDetails.length })
+      return json({ success: true, accountCount: accounts.length })
     }
 
     return json({ error: 'Unknown action' }, 400)

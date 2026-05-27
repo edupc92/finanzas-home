@@ -4,14 +4,6 @@ import { useHouseholdStore } from '../store/householdStore'
 import { useUIStore } from '../store/uiStore'
 import type { BankConnection, BankAccount } from '../types'
 
-interface Institution {
-  id: string
-  name: string
-  bic: string
-  countries: string[]
-  logo: string
-}
-
 async function callEdge(fnName: string, body: object) {
   const { data: { session } } = await supabase.auth.getSession()
   const res = await fetch(
@@ -34,9 +26,7 @@ export function useBanking() {
 
   const [connections, setConnections] = useState<BankConnection[]>([])
   const [accounts, setAccounts] = useState<BankAccount[]>([])
-  const [institutions, setInstitutions] = useState<Institution[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingInstitutions, setLoadingInstitutions] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
   const fetchConnections = useCallback(async () => {
@@ -69,43 +59,34 @@ export function useBanking() {
     fetchConnections()
   }, [fetchConnections])
 
-  // Called on mount if URL has ?ref= (GoCardless redirect back)
-  async function confirmConnection(requisitionId: string) {
+  async function startBankLink() {
     if (!activeHouseholdId) return
+    const redirectUri = `${window.location.origin}/bank`
     const data = await callEdge('bank-connect', {
-      action: 'confirm',
-      requisitionId,
+      action: 'link',
+      redirectUri,
       householdId: activeHouseholdId,
+    })
+    if (data.url) {
+      window.location.href = data.url
+    } else {
+      addToast(data.error ?? 'Error al iniciar la conexión', 'error')
+    }
+  }
+
+  async function handleCallback(code: string, householdId: string) {
+    const redirectUri = `${window.location.origin}/bank`
+    const data = await callEdge('bank-connect', {
+      action: 'callback',
+      code,
+      redirectUri,
+      householdId,
     })
     if (data.success) {
       addToast(`Banco conectado — ${data.accountCount} cuenta${data.accountCount !== 1 ? 's' : ''} importada${data.accountCount !== 1 ? 's' : ''}`)
       await fetchConnections()
     } else {
       addToast(data.error ?? 'Error al confirmar la conexión', 'error')
-    }
-  }
-
-  async function loadInstitutions(country = 'ES') {
-    setLoadingInstitutions(true)
-    const data = await callEdge('bank-connect', { action: 'institutions', country })
-    setInstitutions(Array.isArray(data) ? data : [])
-    setLoadingInstitutions(false)
-  }
-
-  async function connectBank(institution: Institution) {
-    if (!activeHouseholdId) return
-    const redirectUrl = `${window.location.origin}/bank`
-    const data = await callEdge('bank-connect', {
-      action: 'create',
-      institutionId: institution.id,
-      institutionName: institution.name,
-      householdId: activeHouseholdId,
-      redirectUrl,
-    })
-    if (data.link) {
-      window.location.href = data.link
-    } else {
-      addToast(data.error ?? 'Error al iniciar la conexión', 'error')
     }
   }
 
@@ -141,13 +122,10 @@ export function useBanking() {
   return {
     connections,
     accounts,
-    institutions,
     loading,
-    loadingInstitutions,
     syncing,
-    loadInstitutions,
-    connectBank,
-    confirmConnection,
+    startBankLink,
+    handleCallback,
     syncTransactions,
     disconnectBank,
     refetch: fetchConnections,
