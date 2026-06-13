@@ -229,6 +229,66 @@ let KPIS={
  'K-G04':{n:'Ingreso alineado con actividades sostenibles',u:'%',topic:'Finanzas sostenibles',anchor:'Ingresos sostenibles',sec:['PH','CN'],fin:'F-28',vt:4,tr:'Valoración'}
 };
 const VT={1:{l:'Coste operativo',c:'b-green'},2:{l:'Ingreso',c:'b-cobalt'},3:{l:'Riesgo evitado',c:'b-yellow'},4:{l:'Capital y valoración',c:'b-purple'}};
+// Métodos de cálculo válidos por transmisión. Si hay uno solo, no se muestra chooser.
+const TRANSMISSION_METHODS={
+ opex_reduction:       ['economic','physical'],
+ regulatory_cost_avoided:['physical','economic'],
+ productivity_capacity: ['frequency','economic'],
+ incremental_revenue:   ['economic','physical'],
+ protected_revenue:     ['economic'],
+ capex_avoided:         ['economic'],
+ asset_value:           ['economic'],
+ financing_capital:     ['economic'],
+ incentives:            ['economic'],
+ risk_avoided:          ['risk']  // UI propia, no entra en el chooser genérico
+};
+// Labels contextuales del campo base según transmisión × método
+const CALC_LABELS={
+ opex_reduction:{
+   economic:{base:'Gasto afectado (€M)',baseHint:'Gasto anual sobre el que actúa la palanca: energía, materiales, personal, agua…',improve:'% que consigues reducir',improveHint:'Reducción sobre el gasto. Ej.: 15 = ahorras un 15% de esa partida.'},
+   physical:{base:'Consumo anual',baseHint:'Cantidad física total que consumes hoy.',improve:'% de consumo que reduces',improveHint:'Reducción del consumo físico. El ahorro en € se calcula multiplicando por el precio unitario.'}
+ },
+ regulatory_cost_avoided:{
+   physical:{base:'Unidades sometidas a precio regulatorio',baseHint:'tCO₂e, m³, t de residuo… sobre las que se aplica la tarifa o tasa.',improve:'% que reduces',improveHint:'Reducción de las unidades sometidas al precio regulatorio.'},
+   economic:{base:'Exposición regulatoria actual (€M)',baseHint:'Coste total de carbon tax, tasa, canon, RAP o vertedero en el año base.',improve:'% que evitas',improveHint:'Fracción del coste regulatorio que la palanca elimina.'}
+ },
+ productivity_capacity:{
+   frequency:{},  // UI propia de frecuencia
+   economic:{base:'Base de coste de la actividad afectada (€M)',baseHint:'Gasto de personal, contratos o capacidad sobre el que actúa la mejora de productividad.',improve:'% de mejora de productividad o capacidad',improveHint:'Ahorro o capacidad liberada respecto a la base. Ej.: 12 = reduces un 12% del coste o liberas ese % de capacidad.'}
+ },
+ incremental_revenue:{
+   economic:{base:'Ingreso adicional o protegido (€M)',baseHint:'Volumen de ventas nuevas o protegidas que la palanca genera o defiende.',improve:'% que capturas o realizas',improveHint:'Probabilidad o tasa de captura del ingreso potencial.'},
+   physical:{base:'Unidades vendibles',baseHint:'Número de unidades, contratos o clientes que la palanca puede alcanzar.',improve:'% de captura',improveHint:'Fracción del potencial que la palanca captura efectivamente.'}
+ },
+ protected_revenue:{
+   economic:{base:'Ingresos en riesgo (€M)',baseHint:'Ventas, contratos o licencias que podrían perderse sin la palanca.',improve:'% del riesgo que evitas',improveHint:'Fracción del ingreso en riesgo que la palanca protege.'}
+ },
+ capex_avoided:{
+   economic:{base:'CapEx base sin la palanca (€M)',baseHint:'Inversión que tendrías que hacer si no aplicas esta medida.',improve:'% que reduces o difiere',improveHint:'Ahorro o diferimiento de la inversión base gracias a la palanca.'}
+ },
+ asset_value:{
+   economic:{base:'Valor contable del activo expuesto (€M)',baseHint:'Importe en libros del activo que corre riesgo de deterioro o pérdida de valor.',improve:'% de deterioro que evitas',improveHint:'Fracción del deterioro potencial que la palanca evita.'}
+ },
+ incentives:{
+   economic:{base:'Inversión o base elegible (€M)',baseHint:'Importe de inversión o gasto sobre el que se calcula el incentivo.',improve:'% de incentivo, crédito o deducción',improveHint:'Porcentaje que la administración reembolsa, deduce o concede.'}
+ }
+};
+// Sugiere el método de cálculo a partir de la transmisión (primer elemento de TRANSMISSION_METHODS)
+function suggestedCalcMethodFromTransmission(transmission){
+ const methods=TRANSMISSION_METHODS[transmission];
+ if(!methods||!methods.length)return 'economic';
+ return methods[0]; // primer elemento = sugerido / más habitual
+}
+function validCalcMethods(transmission){return TRANSMISSION_METHODS[transmission]||['economic'];}
+function calcLabels(transmission,method){return (CALC_LABELS[transmission]||{})[method]||(CALC_LABELS.opex_reduction.economic);}
+// Referencia a datos financieros del año base para sugerencia de pull-from-financials
+const FIN_BASELINE_MAP={
+ 'F-01':'energyCost','F-02':'carbonCost','F-03':'materialCost','F-04':'waterWasteCost',
+ 'F-05':'waterWasteCost','F-06':'waterWasteCost','F-07':'waterWasteCost','F-08':'materialCost',
+ 'F-09':'materialCost','F-11':'materialCost','F-12':'personnelCost','F-13':'personnelCost',
+ 'F-14':'personnelCost','F-23':'qualityCost','F-24':'revenue','F-25':'cogs','F-28':'revenue','F-31':'netDebt'
+};
+function finBaselineSuggestion(finVar){const key=FIN_VARS[finVar]?.baseLine||FIN_BASELINE_MAP[finVar];if(!key)return null;const v=STATE.fin[key]?.[2];return (v&&v>0)?{key,value:v}:null;}
 const TRANSMISSIONS={
  opex_reduction:{l:'Reducción de coste operativo recurrente',short:'Coste operativo',vt:1,c:'b-green',defaultCalc:'economic',desc:'Menor consumo, menor coste unitario o eficiencia sobre un gasto existente.',formula:'Base de coste × % reducción, o cantidad evitada × precio unitario'},
  regulatory_cost_avoided:{l:'Coste regulatorio/fiscal evitado',short:'Coste regulatorio',vt:1,c:'b-green',defaultCalc:'physical',desc:'Menor carbon tax, tasa, canon, RAP, vertedero u otro precio regulatorio.',formula:'Exposición regulada evitada × precio regulatorio'},
@@ -450,13 +510,17 @@ function suggestedFinVar(kpi,transmission){const v=KPIS[kpi]||{},t=transmission|
  return v.fin||'F-01';
 }
 function suggestedCalcMethod(kpi,transmission){
- const t=TRANSMISSIONS[transmission||legacyTransmissionFromKpi(kpi)];
+ const tr=transmission||legacyTransmissionFromKpi(kpi);
+ // Si la transmisión fija el método (un único válido), lo usamos directamente
+ const valid=validCalcMethods(tr);
+ if(valid.length===1)return valid[0];
+ // Con opciones múltiples: KPIs de frecuencia tienen prioridad
+ if(FREQ_KPIS.includes(kpi)&&valid.includes('frequency'))return 'frequency';
+ // Para regulatory_cost_avoided, physical es preferido si el KPI tiene unidades físicas
  const v=KPIS[kpi]||{};
- const tr=String(v.tr||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/×/g,'x');
- if(t?.defaultCalc)return t.defaultCalc;
- if(FREQ_KPIS.includes(kpi))return 'frequency';
- if(tr.includes('cantidad')&&tr.includes('precio'))return 'physical';
- return 'economic';
+ if(tr==='regulatory_cost_avoided'&&isPhysicalUnit(v.u))return 'physical';
+ // Default al primer elemento de valid (ya es el preferido según TRANSMISSION_METHODS)
+ return valid[0];
 }
 function leverCalcMethod(l){return l.calcMethod || suggestedCalcMethod(l.kpi,getTransmissionKey(l));}
 function freqImprovement(l){const rb=num(l.freqRateBefore,0),ra=num(l.freqRateAfter,0);return rb>0?Math.max(0,(rb-ra)/rb*100):0;}
@@ -658,54 +722,110 @@ function renderLeverData(c){
      </div>
      <div class="note">El efecto en valoración se reporta por separado del flujo de caja operativo (canal de capital).</div></div>`;
   } else {
-   // coste (1) o ingreso (2)
+   // VT=1 (coste) o VT=2 (ingreso): chooser inteligente basado en métodos válidos para esta transmisión
+   const tKey=getTransmissionKey(l);
    const method=leverCalcMethod(l);
-   const baseLabel=vt===2?'¿Cuánto ingreso adicional o protegido genera al año? (€M)':'¿Cuánto gasta hoy la empresa en esto? (€M)';
-   const baseHint=vt===2?'Ingreso anual que la palanca crea o protege.':'Gasto anual actual sobre el que actúas (energía, materiales, personal…).';
-   // Selector de plantilla de cálculo (siempre visible, sugerido por la variable ASG)
-   const chooser=`<div>${label('calcMethod','¿Cómo se calcula el beneficio de esta palanca?')}</div><div class="choice-row" style="margin-bottom:10px">
-      <div class="choice ${method==='economic'?'on':''}" onclick="setCalcMethod(${l.id},'economic')"><b>Importe directo</b><span>Reduzco un % de un gasto o ingreso conocido (ej.: energía).</span></div>
-      <div class="choice ${method==='physical'?'on':''}" onclick="setCalcMethod(${l.id},'physical')"><b>Cantidad × precio</b><span>Base física × precio unitario (ej.: ${esc(v.u)} × €/${esc(v.u)}).</span></div>
-      <div class="choice ${method==='frequency'?'on':''}" onclick="setCalcMethod(${l.id},'frequency')"><b>Frecuencia × coste evitado</b><span>Reduzco una tasa de eventos (ej.: rotación, accidentes).</span></div>
-     </div>`;
-   let baseInput,improvementRow;
-   if(method==='frequency'){
-     const annual=economicBase(l),imp=freqImprovement(l),saved=annual*imp/100;
-     baseInput=`<div class="grid4">
-        <div>${label('quantity','Volumen base')}<input type="number" value="${l.freqVolume||''}" onchange="setFreq(${l.id},'freqVolume',this.value)"><div class="hint">Ej.: nº de empleados, nº de unidades expuestas.</div></div>
-        <div>${label('improvement','Tasa actual (%)')}<input type="number" step="0.1" value="${l.freqRateBefore||''}" onchange="setFreq(${l.id},'freqRateBefore',this.value)"><div class="hint">Ej.: rotación del 12,5%.</div></div>
-        <div>${label('improvement','Tasa objetivo con la medida (%)')}<input type="number" step="0.1" value="${l.freqRateAfter||''}" onchange="setFreq(${l.id},'freqRateAfter',this.value)"><div class="hint">Ej.: bajar al 10%.</div></div>
-        <div>${label('eventCost','Coste por evento (€, NO €M)')}<input type="number" value="${l.freqUnitCost||''}" onchange="setFreq(${l.id},'freqUnitCost',this.value)"><div class="hint" style="color:var(--red);font-weight:600">⚠ Introducir en euros, no en €M. Ej.: 25000 para un reemplazo de €25k.</div>${num(l.freqUnitCost,0)>10000000?'<div class="warn">El valor parece muy alto. ¿Quizás debería estar en €M? Revisa que no es un importe en millones introducido aquí.</div>':''}</div>
-       </div>
-       <div class="calc-summary">Eventos evitados al año: <b>${(num(l.freqVolume,0)*(num(l.freqRateBefore,0)-num(l.freqRateAfter,0))/100).toLocaleString('es-ES',{maximumFractionDigits:0})}</b> · coste actual del driver: <b>${fmt(annual)}</b> · ahorro estabilizado ≈ <b>${fmt(saved)}</b>/año (antes de despliegue y escenarios).</div>`;
-     // En frecuencia, la "mejora" se deriva de las tasas: no se pide el % a mano, solo la confianza y el rango se autocalcula.
-     improvementRow=`<div class="grid4" style="margin-top:10px">
-        <div>${label('improvement','Mejora implícita (%)')}<input type="number" value="${freqImprovement(l).toFixed(1)}" disabled style="opacity:.7"><div class="hint">= (tasa actual − objetivo) / tasa actual. Se calcula sola.</div></div>
-        <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select></div>
-        <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
-        <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
-       </div>`;
-   } else {
-     if(method==='physical'){
-       baseInput=`<div class="grid4"><div>${label('quantity','Cantidad física al año')}<input type="number" value="${l.quantity||''}" onchange="setLev(${l.id},'quantity',this.value)"><div class="hint">En ${esc(l.unitLabel||v.u)}.</div></div><div>${label('unitPrice','Precio por unidad (€)')}<input type="number" value="${l.unitPrice||''}" onchange="setLev(${l.id},'unitPrice',this.value)"></div><div>${label('quantity','Unidad')}<input value="${esc(l.unitLabel||v.u)}" onchange="setLev(${l.id},'unitLabel',this.value,true)"></div></div>`;
-     } else {
-       baseInput=`<div class="grid4"><div>${label('exposure',baseLabel)}<input type="number" value="${l.exposure||''}" onchange="setLev(${l.id},'exposure',this.value)"><div class="hint">${baseHint}</div></div></div>`;
-     }
-     const improveLabel=vt===2?'¿Qué % esperas capturar o proteger?':'¿Qué % esperas reducir?';
-     improvementRow=`<div class="grid4" style="margin-top:10px">
-        <div>${label('improvement',improveLabel)}<input type="number" value="${l.d.base||''}" onchange="setBaseImprovement(${l.id},this.value)"><div class="hint">Mejora sobre la base. Ej.: 15 = reduces/capturas un 15%.</div></div>
-        <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint">Genera el rango bajo/alto automáticamente.</div></div>
-        <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
-        <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
-       </div>`;
+   const valid=validCalcMethods(tKey);
+   const lbl=calcLabels(tKey,method);
+   const finSug=finBaselineSuggestion(leverFinVar(l));
+
+   // ── Chooser: solo aparece si hay más de un método válido para esta transmisión ──
+   let chooser='';
+   if(valid.length>1){
+     const METHOD_NAMES={
+       economic:{opex_reduction:'Gasto en €M',regulatory_cost_avoided:'Coste regulatorio en €M',productivity_capacity:'Ahorro directo en €M',incremental_revenue:'Ingreso en €M',default:'Importe en €M'},
+       physical:{opex_reduction:'Consumo físico × tarifa',regulatory_cost_avoided:'Unidades × precio regulatorio',incremental_revenue:'Unidades × precio × margen',default:'Cantidad × precio'},
+       frequency:{productivity_capacity:'Tasa de eventos × coste',default:'Frecuencia × coste evitado'}
+     };
+     const mLabel=(m)=>(METHOD_NAMES[m]?.[tKey])||METHOD_NAMES[m]?.default||m;
+     const METHOD_DESC={
+       economic:{opex_reduction:'Conoces el gasto anual en €M y estimas el % que reduces.',regulatory_cost_avoided:'Conoces el coste regulatorio total en €M y el % que evitas.',productivity_capacity:'Conoces el gasto afectado en €M y el % de mejora.',incremental_revenue:'Conoces el volumen de ingresos en €M y el % que capturas.',default:'Partes de una base en €M y aplicas un %.'},
+       physical:{opex_reduction:`Tienes datos de consumo (${esc(v.u)}) y el precio unitario.`,regulatory_cost_avoided:`Tienes las unidades reguladas (${esc(v.u)}) y el precio regulatorio.`,incremental_revenue:`Tienes unidades (${esc(v.u)}), precio y margen.`,default:`Cantidad (${esc(v.u)}) × precio unitario.`},
+       frequency:{productivity_capacity:'Tienes la tasa actual, la objetivo y el coste por evento.',default:'Reduces una tasa de eventos; el ahorro sale de tasas × coste.'}
+     };
+     const mDesc=(m)=>(METHOD_DESC[m]?.[tKey])||METHOD_DESC[m]?.default||'';
+     chooser=`<div style="margin-bottom:14px"><label class="fld">¿Cómo tienes los datos de esta palanca?</label>
+       <div class="choice-row" style="margin-top:6px">${valid.map(m=>`<div class="choice ${method===m?'on':''}" onclick="setCalcMethod(${l.id},'${m}')"><b>${mLabel(m)}</b><span>${mDesc(m)}</span></div>`).join('')}
+       </div></div>`;
    }
-   const marginField=vt===2?`<div class="grid4" style="margin-top:10px"><div>${label('impactType','¿Qué % de ese ingreso es margen?')}<input type="number" value="${l.contributionMargin||35}" onchange="setLev(${l.id},'contributionMargin',this.value)"><div class="hint">Solo el margen llega al beneficio. Ej.: 35%.</div></div></div>`:'';
-   valueBlock=`<div class="step-block"><h4>2. ¿Sobre qué actúa y cuánto mejora?</h4>
+
+   // ── Bloque de inputs según método ──
+   let baseInput='',improvementRow='',inlineResult='';
+   const impBase=economicBase(l);
+
+   if(method==='frequency'){
+     const annual=impBase,imp=freqImprovement(l),saved=annual*imp/100;
+     const evitados=num(l.freqVolume,0)*(num(l.freqRateBefore,0)-num(l.freqRateAfter,0))/100;
+     baseInput=`<div class="grid4">
+       <div>${label('quantity','Volumen expuesto')}<input type="number" value="${l.freqVolume||''}" onchange="setFreq(${l.id},'freqVolume',this.value)"><div class="hint">Nº de personas, unidades o eventos expuestos al año.</div></div>
+       <div>${label('improvement','Tasa actual (%)')}<input type="number" step="0.1" value="${l.freqRateBefore||''}" onchange="setFreq(${l.id},'freqRateBefore',this.value)"><div class="hint">Ej.: rotación del 12,5 %.</div></div>
+       <div>${label('improvement','Tasa objetivo (%)')}<input type="number" step="0.1" value="${l.freqRateAfter||''}" onchange="setFreq(${l.id},'freqRateAfter',this.value)"><div class="hint">Nivel al que llegas con la medida.</div></div>
+       <div>${label('eventCost','Coste por evento (€, NO €M)')}<input type="number" value="${l.freqUnitCost||''}" onchange="setFreq(${l.id},'freqUnitCost',this.value)"><div class="hint" style="color:var(--red);font-weight:600">⚠ En euros, no en €M. Ej.: 25000.</div>${num(l.freqUnitCost,0)>10000000?'<div class="warn">Valor muy alto — ¿quizás es €M?</div>':''}</div>
+     </div>`;
+     inlineResult=`<div class="calc-summary" style="margin-top:10px">
+       Eventos evitados/año: <b>${evitados.toLocaleString('es-ES',{maximumFractionDigits:0})}</b>
+       &nbsp;·&nbsp; Base driver: <b>${fmt(annual)}</b>
+       &nbsp;·&nbsp; <span style="color:var(--green);font-weight:700">Beneficio est. ≈ ${fmt(saved)}/año</span>
+       <span class="muted"> (antes de despliegue y escenarios)</span>
+     </div>`;
+     improvementRow=`<div class="grid4" style="margin-top:12px">
+       <div>${label('improvement','Mejora implícita (%)')}<input type="number" value="${freqImprovement(l).toFixed(1)}" disabled style="opacity:.65"><div class="hint">= (tasa actual − objetivo) / tasa actual. Calculada automáticamente.</div></div>
+       <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint">Genera el rango bajo/alto automáticamente.</div></div>
+       <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
+       <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
+     </div>`;
+
+   } else if(method==='physical'){
+     const physBase=(l.quantity||0)*(l.unitPrice||0)/1e6;
+     const physBenefit=physBase*(l.d.base||0)/100*(vt===2?(l.contributionMargin||35)/100:1);
+     baseInput=`<div class="grid4">
+       <div>${label('quantity',lbl.base||'Cantidad física al año')}<input type="number" value="${l.quantity||''}" onchange="setLev(${l.id},'quantity',this.value)"><div class="hint">${lbl.baseHint||'Introducir en las unidades del KPI.'} Unidad: <b>${esc(l.unitLabel||v.u)}</b> <a href="#" style="color:var(--cobalt);font-size:11px" onclick="event.preventDefault();let u=prompt('Nueva unidad:','${esc(l.unitLabel||v.u)}');if(u){setLev(${l.id},'unitLabel',u,true);go('leverdata');}">cambiar</a></div></div>
+       <div>${label('unitPrice','Precio por unidad (€)')}<input type="number" value="${l.unitPrice||''}" onchange="setLev(${l.id},'unitPrice',this.value)"><div class="hint">En euros por ${esc(l.unitLabel||v.u)}.</div></div>
+       <div class="summary-card" style="align-self:end;border-left-color:var(--cobalt)"><div class="lbl">Base calculada</div><div class="value" style="font-size:1.1rem">${fmt(physBase)}</div><div class="sub">${(l.quantity||0).toLocaleString('es-ES')} × €${(l.unitPrice||0).toLocaleString('es-ES')}</div></div>
+     </div>`;
+     inlineResult=physBase>0&&(l.d.base||0)>0?`<div class="calc-summary" style="margin-top:10px">
+       Base: <b>${fmt(physBase)}</b> &nbsp;·&nbsp; Mejora: <b>${fmtp(l.d.base||0)}</b>
+       ${vt===2?` &nbsp;·&nbsp; Margen: <b>${l.contributionMargin||35}%</b>`:''}
+       &nbsp;·&nbsp; <span style="color:var(--green);font-weight:700">Beneficio est. ≈ ${fmt(physBenefit)}/año</span>
+       <span class="muted"> (antes de despliegue y escenarios)</span>
+     </div>`:'';
+     improvementRow=`<div class="grid4" style="margin-top:12px">
+       <div>${label('improvement',lbl.improve||'% que reduces o capturas')}<input type="number" value="${l.d.base||''}" onchange="setBaseImprovement(${l.id},this.value)"><div class="hint">${lbl.improveHint||'Mejora sobre la base física.'}</div></div>
+       <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint">Genera rango bajo/alto automáticamente.</div></div>
+       <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
+       <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
+     </div>`;
+
+   } else {
+     // economic: importe directo en €M
+     const econBenefit=impBase*(l.d.base||0)/100*(vt===2?(l.contributionMargin||35)/100:1);
+     const sugBtn=finSug?`<div style="margin-top:6px"><a href="#" style="color:var(--cobalt);font-size:11.5px;font-weight:600" onclick="event.preventDefault();setLev(${l.id},'exposure',${finSug.value});go('leverdata')">← Cargar ${fmt(finSug.value)} de Base financiera</a><span class="muted" style="font-size:11px"> (${finSug.key}[año base])</span></div>`:'';
+     baseInput=`<div class="grid4">
+       <div style="grid-column:span 2">${label('exposure',lbl.base||'Base económica (€M)')}<input type="number" value="${l.exposure||''}" onchange="setLev(${l.id},'exposure',this.value)"><div class="hint">${lbl.baseHint||'Importe anual sobre el que actúa la palanca.'}</div>${sugBtn}</div>
+       ${impBase>0?`<div class="summary-card" style="border-left-color:var(--cobalt)"><div class="lbl">Base introducida</div><div class="value" style="font-size:1.15rem">${fmt(impBase)}</div></div>`:'<div></div>'}
+     </div>`;
+     inlineResult=impBase>0&&(l.d.base||0)>0?`<div class="calc-summary" style="margin-top:10px">
+       Base: <b>${fmt(impBase)}</b> &nbsp;·&nbsp; Mejora: <b>${fmtp(l.d.base||0)}</b>
+       ${vt===2?` &nbsp;·&nbsp; Margen: <b>${l.contributionMargin||35}%</b>`:''}
+       &nbsp;·&nbsp; <span style="color:var(--green);font-weight:700">Beneficio est. ≈ ${fmt(econBenefit)}/año</span>
+       <span class="muted"> (antes de despliegue y escenarios)</span>
+     </div>`:'';
+     improvementRow=`<div class="grid4" style="margin-top:12px">
+       <div>${label('improvement',lbl.improve||'% de mejora')}<input type="number" value="${l.d.base||''}" onchange="setBaseImprovement(${l.id},this.value)"><div class="hint">${lbl.improveHint||'Ej.: 15 = reduces/capturas un 15%.'}</div></div>
+       <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint">Genera rango bajo/alto automáticamente.</div></div>
+       <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
+       <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
+     </div>`;
+   }
+
+   const marginField=vt===2?`<div class="grid4" style="margin-top:10px"><div>${label('impactType','Margen de contribución (%)')}<input type="number" value="${l.contributionMargin||35}" onchange="setLev(${l.id},'contributionMargin',this.value)"><div class="hint">Solo el margen llega al beneficio. Ej.: 35%.</div></div></div>`:'';
+   valueBlock=`<div class="step-block"><h4>2. Base y mejora estimada</h4>
      ${chooser}
      ${baseInput}
      ${improvementRow}
+     ${inlineResult}
      ${marginField}
-     </div>`;
+   </div>`;
   }
 
   // --- Detalle financiero (visible pero secundario) ---
@@ -745,7 +865,7 @@ function renderLeverData(c){
       ${l.useSubsidy?`<div>${label('financing','Subvención (€M)')}<input type="number" value="${l.subsidy||''}" onchange="setLev(${l.id},'subsidy',this.value)"></div>`:'<div></div>'}
     </div></div>
 
-    <div class="calc-summary">${summary}</div>
+    ${(vt===3||vt===4)?`<div class="calc-summary">${summary}</div>`:''}
 
     <div class="step-block" style="background:var(--surf-2)"><h4>4. Detalle financiero <span class="muted" style="font-weight:400;font-size:12px">— opcional, ya tiene valores por defecto</span></h4><div class="grid4">
       ${l.useCapex?`<div>${label('usefulLife','Vida útil de la inversión (años)')}<input type="number" value="${l.usefulLife||8}" onchange="setLev(${l.id},'usefulLife',this.value)"></div>
@@ -766,7 +886,8 @@ function ensureLeverCollapseState(){if(!RESULTS_VIEW.leverCollapsed)RESULTS_VIEW
 function toggleLeverPanel(id){ensureLeverCollapseState();RESULTS_VIEW.leverCollapsed[id]=!RESULTS_VIEW.leverCollapsed[id];go('leverdata');}
 function setAllLeverPanels(collapsed){ensureLeverCollapseState();STATE.levers.forEach(l=>{RESULTS_VIEW.leverCollapsed[l.id]=!!collapsed;});go('leverdata');}
 function leverInputSummary(l){normalizeLever(l);const v=KPIS[l.kpi],vt=getLeverVt(l),base=economicBase(l),d=num(l.d.base,0),annual=base*d/100;if(vt===3){const before=(l.risk.probBefore||0)/100*(l.risk.eventCost||0)*(1-(l.risk.coveredByInsurance||0)/100);const after=(l.risk.probAfter||0)/100*(l.risk.eventCost||0)*(1-(l.risk.coveredByInsurance||0)/100);return `Pérdida esperada hoy: <b>${fmt(before)}</b>/año. Con la medida: <b>${fmt(after)}</b>/año. Ahorro de riesgo estabilizado: <b>${fmt(Math.max(0,before-after))}</b>/año (antes de escenarios y despliegue).`;}const m=leverCalcMethod(l);if(m==='frequency'){const events=num(l.freqVolume,0)*(num(l.freqRateBefore,0)-num(l.freqRateAfter,0))/100;return `<b>${num(l.freqVolume,0).toLocaleString('es-ES')}</b> × (${num(l.freqRateBefore,0)}% − ${num(l.freqRateAfter,0)}%) × <b>${num(l.freqUnitCost,0).toLocaleString('es-ES')}</b> € = <b>${events.toLocaleString('es-ES',{maximumFractionDigits:0})}</b> eventos evitados → ahorro estabilizado ≈ <b>${fmt(annual)}</b>/año (antes de escenarios y despliegue).`;}if(m==='physical')return `Base = <b>${(l.quantity||0).toLocaleString('es-ES')}</b> ${esc(l.unitLabel||v.u)} × <b>${(l.unitPrice||0).toLocaleString('es-ES')}</b> € = <b>${fmt(base)}</b>. Con una mejora del <b>${fmtp(d)}</b>, beneficio bruto anual estabilizado ≈ <b>${fmt(vt===2?annual*((l.contributionMargin||35)/100):annual)}</b>.`;return `Base usada: <b>${fmt(base)}</b>. Con una mejora del <b>${fmtp(d)}</b>, beneficio bruto anual estabilizado ≈ <b>${fmt(vt===2?annual*((l.contributionMargin||35)/100):annual)}</b> (antes de escenarios y despliegue).`;}
-function setLeverTransmission(id,value){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.transmission=value;l.finVar=suggestedFinVar(l.kpi,value);l.calcMethod=suggestedCalcMethod(l.kpi,value);if(l.calcMethod==='frequency')syncFreqLever(l);go('leverdata');}
+function setLeverTransmission(id,value){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.transmission=value;l.finVar=suggestedFinVar(l.kpi,value);// Solo resetear el método si el actual ya no es válido para la nueva transmisión
+const valid=validCalcMethods(value);if(!valid.includes(l.calcMethod))l.calcMethod=suggestedCalcMethod(l.kpi,value);if(l.calcMethod==='frequency')syncFreqLever(l);go('leverdata');}
 function setLeverFinVar(id,value){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.finVar=value;go('leverdata');}
 function setCalcMethod(id,method){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.calcMethod=method;if(method==='frequency')syncFreqLever(l);go('leverdata');}
 function setFreq(id,key,v){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l[key]=num(v);syncFreqLever(l);go('leverdata');}
