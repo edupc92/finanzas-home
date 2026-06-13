@@ -1,0 +1,1157 @@
+<!--
+  Tool: Sustainability Value Assessment (SVA) — Impacto financiero de las medidas de sostenibilidad
+  Version: MVP 1.4 Corporate Finance
+  Scope: bottom-up, value creation & protection. Cliente-side, single file, sin backend.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sustainability & Corporate Finance</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Open+Sans+Condensed:wght@300;700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+:root{
+  --kpmg-blue:#00338D; --cobalt:#1E49E2; --cobalt-light:#4a6ef0; --dark-blue:#0C233C;
+  --pacific:#00B8F5; --light-blue:#ACEAFF; --white:#FFFFFF; --purple:#7213EA; --pink:#FD349C;
+  --bg:#F7F8FA; --surf-1:#FFFFFF; --surf-2:#FBFCFD;
+  --border:#EEF0F3; --border-strong:#D8DCE3;
+  --text:#0C233C; --muted:#5A6573; --dim:#8892A0;
+  --red:#C4392B; --yellow:#D69E2E; --green:#2F855A; --accent:#1E49E2;
+  --badge-bg:rgba(30,73,226,0.08); --badge-text:#1E49E2; --hover-row:#F5F7FA;
+  --shadow-sm:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+  --shadow-md:0 4px 8px -2px rgba(16,24,40,.08),0 2px 4px -2px rgba(16,24,40,.04);
+  --shadow-lg:0 12px 16px -4px rgba(16,24,40,.08),0 4px 6px -2px rgba(16,24,40,.03);
+  --s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:20px;--s-6:24px;--s-7:32px;
+  --r-1:4px;--r-2:8px;--r-3:12px;
+  --ease:cubic-bezier(.2,.7,.3,1);
+  --font-sans:'Inter','Open Sans',-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;
+  --font-display:'Inter','Open Sans Condensed',Arial,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font-sans);background:var(--bg);color:var(--text);line-height:1.5;font-feature-settings:"cv11","ss01"}
+.sidebar{position:fixed;top:0;left:0;width:256px;height:100vh;background:linear-gradient(180deg,#0A1D3A 0%,#0C233C 100%);color:#fff;display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+.sidebar-header{padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-logo-text{font-family:var(--font-display);font-weight:700;font-size:11px;color:rgba(255,255,255,.82);letter-spacing:.12em;text-transform:uppercase}
+.sidebar-title{font-family:var(--font-display);font-weight:700;font-size:15px;color:#fff;line-height:1.3;letter-spacing:-.01em;margin-top:6px}
+.sidebar-subtitle{font-size:11px;color:rgba(255,255,255,.55);margin-top:4px}
+.sidebar-badge{display:inline-block;background:rgba(30,73,226,.25);color:#ACEAFF;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:var(--r-1);margin-top:10px;border:1px solid rgba(172,234,255,.2)}
+.sidebar-nav{flex:1;padding:10px 0}
+.sidebar-step{display:flex;align-items:center;gap:9px;padding:8px 12px 8px 10px;cursor:pointer;color:rgba(255,255,255,.65);font-size:12.5px;font-weight:500;transition:background .18s var(--ease),color .18s var(--ease);position:relative;margin:1px 8px;border-radius:var(--r-2)}
+.sidebar-step:hover{background:rgba(255,255,255,.05);color:#fff}
+.sidebar-step.active{background:rgba(30,73,226,.22);color:#fff;font-weight:600}
+.sidebar-step.active::before{content:'';position:absolute;left:-8px;top:6px;bottom:6px;width:3px;background:var(--pacific);border-radius:0 2px 2px 0;box-shadow:0 0 12px rgba(0,184,245,.45)}
+.step-num{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.sidebar-step.active .step-num{background:var(--cobalt)}
+.sidebar-foot{padding:12px 16px;font-size:10px;color:rgba(255,255,255,.4);border-top:1px solid rgba(255,255,255,.07)}
+.main{margin-left:256px;min-height:100vh}
+.header-bar{position:sticky;top:0;z-index:50;background:linear-gradient(90deg,#00338D,#0C233C);color:#fff;padding:14px 28px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow-md)}
+.header-bar h1{font-family:var(--font-display);font-weight:700;font-size:clamp(14px,1.4vw,19px);margin:0;flex:1;letter-spacing:-.01em}
+.content{padding:28px 32px 64px;max-width:1260px}
+.section-title{font-family:var(--font-display);font-size:21px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em}
+.section-lead{color:var(--muted);font-size:13.5px;margin:0 0 22px;max-width:900px}
+.card{background:var(--surf-1);border:1px solid var(--border);border-radius:var(--r-3);padding:20px 22px;box-shadow:var(--shadow-sm);margin-bottom:18px}
+.card h3{font-family:var(--font-display);font-weight:700;font-size:14px;margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--border);letter-spacing:-.01em}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+label.fld{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;position:relative}
+.help-q{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid var(--border-strong);border-radius:50%;font-size:10px;font-weight:800;color:var(--dim);background:#fff;opacity:0;transform:translateY(1px);transition:opacity .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease);cursor:pointer}
+label.fld:hover .help-q{opacity:1}
+.help-q:hover{color:var(--cobalt);border-color:var(--cobalt);background:var(--badge-bg)}
+.help-pop{position:fixed;z-index:500;background:#fff;border:1px solid var(--border-strong);border-radius:10px;box-shadow:var(--shadow-lg);padding:12px 14px;max-width:330px;font-size:12.5px;color:var(--text);display:none}
+.help-pop b{display:block;color:var(--kpmg-blue);margin-bottom:5px}
+input,select,textarea{width:100%;padding:8px 10px;background:var(--surf-2);border:1px solid var(--border-strong);border-radius:var(--r-2);color:var(--text);font-size:13px;font-family:var(--font-sans);transition:border-color .18s var(--ease)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cobalt);box-shadow:0 0 0 3px var(--badge-bg)}
+textarea{min-height:82px;resize:vertical}
+.btn{background:var(--surf-1);border:1px solid var(--border-strong);color:var(--text);padding:8px 14px;border-radius:var(--r-2);cursor:pointer;font-size:12.5px;font-family:var(--font-sans);font-weight:600;display:inline-flex;align-items:center;gap:6px;transition:all .18s var(--ease);text-decoration:none}
+.btn:hover{border-color:var(--cobalt);background:var(--hover-row)}
+.btn.primary{background:var(--cobalt);border-color:var(--cobalt);color:#fff}
+.btn.primary:hover{background:#1840c8;box-shadow:var(--shadow-md)}
+.btn.danger{color:var(--red);border-color:#f0cfca}
+.btn.danger:hover{background:#fbeae8}
+.btn.sm{padding:5px 9px;font-size:11.5px}
+.row-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:12.3px}
+th{background:var(--kpmg-blue);color:#fff;padding:8px 10px;text-align:left;font-weight:600;font-size:11.5px;white-space:nowrap}
+td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:var(--hover-row)}
+.tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-2)}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--r-1);font-size:10.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.b-cobalt{background:var(--badge-bg);color:var(--badge-text)}
+.b-green{background:#e7f3ec;color:var(--green)}
+.b-red{background:#fbeae8;color:var(--red)}
+.b-yellow{background:#fbf3e1;color:#9a6f12}
+.b-grey{background:#eef0f3;color:var(--muted)}
+.b-purple{background:#f0e6fc;color:var(--purple)}
+.vt{font-size:10px;font-weight:700;padding:2px 7px;border-radius:var(--r-1);white-space:nowrap}
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.summary-card{background:var(--surf-1);border:1px solid var(--border);border-radius:var(--r-3);padding:16px 18px;box-shadow:var(--shadow-sm);border-left:3px solid var(--cobalt)}
+.summary-card .lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.summary-card .value{font-family:var(--font-display);font-size:1.55rem;font-weight:700;margin-top:4px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.summary-card .sub{font-size:11px;color:var(--dim);margin-top:2px}
+.hint{font-size:11.5px;color:var(--dim);margin-top:4px}
+.note{background:#F0F4FF;border:1px solid #D0D9FF;border-radius:var(--r-2);padding:12px 14px;font-size:12.5px;color:var(--dark-blue);margin:14px 0}
+.note b{color:var(--kpmg-blue)}
+.numeric-input{font-variant-numeric:tabular-nums}
+.warn{background:#FFF8E8;border:1px solid #F4DDA5;border-radius:var(--r-2);padding:11px 13px;font-size:12.5px;color:#6f4d00;margin:10px 0}
+.err{background:#FBEAE8;border:1px solid #F0CFCA;border-radius:var(--r-2);padding:11px 13px;font-size:12.5px;color:var(--red);margin:10px 0}
+.lever-card{border:1px solid var(--border);border-radius:var(--r-2);padding:14px 16px;margin-bottom:12px;background:var(--surf-2);transition:box-shadow .18s var(--ease)}
+.lever-card.inactive{opacity:.56}
+.lever-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.lever-name{font-weight:700;font-size:13.5px}
+.toggle{position:relative;width:38px;height:20px;flex-shrink:0}.toggle input{display:none}.toggle span{position:absolute;inset:0;background:var(--border-strong);border-radius:20px;cursor:pointer;transition:.2s}.toggle span::before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;box-shadow:var(--shadow-sm)}.toggle input:checked+span{background:var(--green)}.toggle input:checked+span::before{transform:translateX(18px)}
+.kpi-tag{font-size:10.5px;color:var(--muted);background:#fff;border:1px solid var(--border);padding:1px 7px;border-radius:var(--r-1)}
+.chart{width:100%;height:340px}.chart.tall{height:430px}.chart.small{height:260px}
+.muted{color:var(--muted)}.right{text-align:right;font-variant-numeric:tabular-nums}.nowrap{white-space:nowrap}.strong{font-weight:700}
+.flexbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--r-2);overflow:hidden}
+.seg button{border:none;background:var(--surf-1);padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--cobalt);color:#fff}
+.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.tab{border:1px solid var(--border-strong);background:#fff;color:var(--muted);padding:7px 11px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer}.tab.on{background:var(--cobalt);color:#fff;border-color:var(--cobalt)}
+.wizard-card{border:1px solid var(--border);border-radius:14px;background:#fff;box-shadow:var(--shadow-sm);margin-bottom:18px;overflow:hidden}
+.wizard-head{padding:16px 18px;background:linear-gradient(90deg,#F7F9FF,#FFFFFF);border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.wizard-body{padding:18px 20px}
+.wizard-card.collapsed .wizard-body{display:none}
+.wizard-card.collapsed .wizard-head{border-bottom:0}
+.wizard-head-main{flex:1;min-width:0}
+.wizard-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.collapse-btn{border:1px solid var(--border-strong);background:#fff;color:var(--text);border-radius:999px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:all .18s var(--ease)}
+.collapse-btn:hover{border-color:var(--cobalt);background:var(--hover-row)}
+.collapse-icon{font-size:11px;line-height:1}.collapse-label{white-space:nowrap}
+.step-block{border:1px solid var(--border);border-radius:12px;background:var(--surf-2);padding:15px 16px;margin-bottom:14px}
+.step-block h4{margin:0 0 10px;font-size:13px;font-weight:800;color:var(--kpmg-blue);letter-spacing:-.01em}
+.choice-row{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 12px}
+.choice{border:1px solid var(--border-strong);background:#fff;border-radius:12px;padding:10px 12px;min-width:190px;cursor:pointer;transition:all .18s var(--ease)}
+.choice:hover{border-color:var(--cobalt);box-shadow:var(--shadow-sm)}
+.choice.on{border-color:var(--cobalt);background:var(--badge-bg)}
+.choice b{display:block;font-size:12.5px;color:var(--text);margin-bottom:2px}.choice span{font-size:11.5px;color:var(--muted)}
+.calc-summary{background:#F8FAFC;border:1px dashed var(--border-strong);border-radius:12px;padding:12px 14px;font-size:12.5px;color:var(--text);margin-top:12px}
+.calc-summary b{color:var(--kpmg-blue)}
+.advanced-box{border-top:1px solid var(--border);margin-top:12px;padding-top:14px}
+.mini-kpi{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:11px;color:var(--muted);margin-right:6px;margin-top:4px}
+
+@media(max-width:1000px){.sidebar{position:relative;width:100%;height:auto}.main{margin-left:0}.summary-row,.grid4,.grid5{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.summary-row,.grid2,.grid3,.grid4,.grid5{grid-template-columns:1fr}.content{padding:20px}.header-bar{padding:12px 18px}}
+.print-only{display:none}
+@media print{.sidebar,.header-bar,.btn,.seg,.tabs{display:none!important}.main{margin:0}.content{max-width:100%;padding:0}.card{box-shadow:none;page-break-inside:avoid}.chart{height:280px}.print-only{display:block!important}}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo-text">KPMG - Sustainability</div>
+    <div class="sidebar-title">Sustainable Corporate Finance</div>
+    <div class="sidebar-subtitle">Análisis del impacto financiero de la sostenibilidad</div>
+    <span class="sidebar-badge">v2.1</span>
+  </div>
+  <nav class="sidebar-nav" id="nav">
+    <div class="sidebar-step active" onclick="if(window.go)go('config')"><span class="step-num">1</span><span>Configuración</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('financials')"><span class="step-num">2</span><span>Base financiera</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('database')"><span class="step-num">3</span><span>Base de datos</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('levers')"><span class="step-num">4</span><span>Palancas</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('asg')"><span class="step-num">5</span><span>Datos ASG</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('leverdata')"><span class="step-num">6</span><span>Supuestos de palancas</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('scenarios')"><span class="step-num">7</span><span>Escenarios</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('overlaps')"><span class="step-num">8</span><span>Solapamientos</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('results')"><span class="step-num">9</span><span>Resultados</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('capital')"><span class="step-num">10</span><span>Asignación de capital</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('inaction')"><span class="step-num">11</span><span>Coste de inacción</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('sens')"><span class="step-num">12</span><span>Sensibilidad y Monte Carlo</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('case')"><span class="step-num">13</span><span>Investment case</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('detail')"><span class="step-num">14</span><span>Detalle de cálculos</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('audit')"><span class="step-num">15</span><span>Registro de supuestos</span></div>
+    <div class="sidebar-step" onclick="if(window.go)go('method')"><span class="step-num">16</span><span>Metodología</span></div>
+  </nav>
+  <div class="sidebar-foot">Creación y protección de valor · FCF · NPV · TIR · Riesgo · Escenarios</div>
+</aside>
+<div class="main">
+  <div class="header-bar"><h1 id="hdr">Configuración</h1>
+    <button class="btn sm" onclick="loadExample()">Cargar ejemplo</button>
+    <button class="btn sm" onclick="saveToLocal()">Guardar</button>
+    <button class="btn sm" onclick="loadFromLocal()">Cargar guardado</button>
+    <button class="btn sm" onclick="resetAll()">Reiniciar</button>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+<div class="help-pop" id="helpPop"></div>
+<script>
+/* ============================ BASE DE DATOS ============================ */
+let FIN_VARS={
+ 'F-01':{n:'Precio de la energía',line:'Costes operativos de energía',type:'Precio o tarifa',scen:true,baseLine:'energyCost',priceDriver:'energy'},
+ 'F-02':{n:'Precio del carbono',line:'Costes de emisiones y fiscalidad climática',type:'Precio o tarifa',scen:true,baseLine:'carbonCost',priceDriver:'carbon'},
+ 'F-03':{n:'Coste de carbono en materiales importados',line:'Coste de ventas y fiscalidad',type:'Precio o tarifa',scen:true,baseLine:'materialCost',priceDriver:'carbon'},
+ 'F-04':{n:'Tarifa de agua',line:'Costes operativos de agua',type:'Precio o tarifa',scen:true,baseLine:'waterWasteCost',priceDriver:'ipc'},
+ 'F-05':{n:'Tratamiento de efluentes',line:'Costes operativos ambientales',type:'Coste unitario',scen:false,baseLine:'waterWasteCost',priceDriver:'ipc'},
+ 'F-06':{n:'Gestión de residuo peligroso',line:'Costes operativos ambientales',type:'Coste unitario',scen:false,baseLine:'waterWasteCost',priceDriver:'ipc'},
+ 'F-07':{n:'Tasa de vertedero',line:'Costes operativos y fiscalidad',type:'Precio o tarifa',scen:true,baseLine:'waterWasteCost',priceDriver:'ipc'},
+ 'F-08':{n:'Precio de materiales',line:'Coste de ventas',type:'Precio o tarifa',scen:true,baseLine:'materialCost',priceDriver:'material'},
+ 'F-09':{n:'Tasa de responsabilidad ampliada del productor',line:'Costes operativos y fiscalidad',type:'Precio o tarifa',scen:true,baseLine:'materialCost',priceDriver:'ipc'},
+ 'F-11':{n:'Coste de mermas y productos descartados',line:'Coste de ventas',type:'Coste unitario',scen:false,baseLine:'materialCost',priceDriver:'material'},
+ 'F-12':{n:'Coste de reemplazo por empleado',line:'Costes de personal',type:'Coste unitario',scen:true,baseLine:'personnelCost',priceDriver:'labor'},
+ 'F-13':{n:'Coste de contratación temporal o externa',line:'Costes de personal',type:'Coste unitario',scen:true,baseLine:'personnelCost',priceDriver:'labor'},
+ 'F-14':{n:'Productividad perdida',line:'Costes de personal y gastos generales',type:'Coste unitario',scen:false,baseLine:'personnelCost',priceDriver:'labor'},
+ 'F-15':{n:'Coste por retrasos o permisos',line:'Inversión, penalizaciones y pérdida de margen',type:'Coste unitario',scen:false,priceDriver:'ipc'},
+ 'F-16':{n:'Provisión por multas o litigios',line:'Provisiones y pérdidas esperadas',type:'Provisión',scen:false,priceDriver:'ipc'},
+ 'F-17':{n:'Prima de seguro',line:'Costes operativos y gastos generales',type:'Coste unitario',scen:false,priceDriver:'ipc'},
+ 'F-23':{n:'Coste por retirada de producto',line:'Provisiones y costes operativos',type:'Coste unitario',scen:false,baseLine:'qualityCost',priceDriver:'ipc'},
+ 'F-24':{n:'Ingreso perdido o protegido',line:'Ingresos',type:'Ingreso',scen:false,baseLine:'revenue',priceDriver:'rev'},
+ 'F-25':{n:'Coste de retrabajo o garantía',line:'Coste de ventas y provisiones',type:'Coste unitario',scen:false,baseLine:'cogs',priceDriver:'ipc'},
+ 'F-26':{n:'Penalización contractual',line:'Penalizaciones',type:'Coste unitario',scen:false,priceDriver:'ipc'},
+ 'F-28':{n:'Ingreso de nuevos mercados',line:'Ingresos',type:'Ingreso',scen:false,baseLine:'revenue',priceDriver:'rev'},
+ 'F-31':{n:'Margen del coste de la deuda',line:'Gastos financieros',type:'Financiación',scen:false,baseLine:'netDebt',priceDriver:'finance'},
+ 'F-32':{n:'Coste medio del capital',line:'Valoración de empresa',type:'Valoración',scen:false,priceDriver:'finance'}
+};
+let KPIS={
+ 'K-E01':{n:'Consumo energético total',u:'MWh',topic:'Cambio climático y energía',anchor:'Consumo de energía',sec:['PH','CN'],fin:'F-01',vt:1,tr:'Cantidad por precio'},
+ 'K-E03':{n:'Emisiones directas de gases de efecto invernadero',u:'tCO₂e',topic:'Cambio climático',anchor:'Emisiones propias',sec:['PH','CN'],fin:'F-02',vt:1,tr:'Cantidad por precio'},
+ 'K-E04':{n:'Emisiones indirectas por electricidad comprada',u:'tCO₂e',topic:'Cambio climático',anchor:'Emisiones de electricidad',sec:['PH','CN'],fin:'F-02',vt:1,tr:'Cantidad por precio'},
+ 'K-E05':{n:'Emisiones de la cadena de valor',u:'tCO₂e',topic:'Cadena de suministro',anchor:'Emisiones de proveedores y uso',sec:['PH','CN'],fin:'F-03',vt:1,tr:'Cantidad por precio'},
+ 'K-E07':{n:'Carbono incorporado en producto',u:'kgCO₂e/ud',topic:'Producto',anchor:'Huella de producto',sec:['CN'],fin:'F-03',vt:1,tr:'Cantidad por precio'},
+ 'K-E08':{n:'Captación de agua',u:'m³',topic:'Agua',anchor:'Uso de agua',sec:['PH','CN'],fin:'F-04',vt:1,tr:'Cantidad por precio'},
+ 'K-E11':{n:'Residuo peligroso generado',u:'t',topic:'Contaminación y residuos',anchor:'Residuos peligrosos',sec:['PH','CN'],fin:'F-06',vt:1,tr:'Cantidad por precio'},
+ 'K-E12':{n:'Residuo no peligroso generado',u:'t',topic:'Economía circular',anchor:'Residuos no peligrosos',sec:['CN'],fin:'F-07',vt:1,tr:'Cantidad por precio'},
+ 'K-E13':{n:'Consumo de material virgen',u:'t',topic:'Economía circular',anchor:'Materiales',sec:['PH','CN'],fin:'F-08',vt:1,tr:'Cantidad por precio'},
+ 'K-E16':{n:'Superficie alterada o restaurada',u:'ha',topic:'Biodiversidad',anchor:'Uso del suelo',sec:['CN'],fin:'F-15',vt:3,tr:'Riesgo evitado'},
+ 'K-S01':{n:'Rotación voluntaria de empleados',u:'%',topic:'Personas',anchor:'Retención de empleados',sec:['PH','CN'],fin:'F-12',vt:1,tr:'Driver por coste'},
+ 'K-S03':{n:'Tiempo para cubrir vacantes',u:'días',topic:'Personas',anchor:'Contratación',sec:['PH','CN'],fin:'F-13',vt:1,tr:'Driver por coste'},
+ 'K-S05':{n:'Accidentabilidad laboral',u:'índice',topic:'Salud y seguridad',anchor:'Accidentes',sec:['PH','CN'],fin:'F-17',vt:1,tr:'Driver por coste'},
+ 'K-S08':{n:'Proveedores evaluados',u:'%',topic:'Cadena de suministro',anchor:'Evaluación de proveedores',sec:['PH','CN'],fin:'F-16',vt:3,tr:'Riesgo evitado'},
+ 'K-S09':{n:'Insumos críticos de proveedor único',u:'%',topic:'Cadena de suministro',anchor:'Concentración de suministro',sec:['PH'],fin:'F-24',vt:3,tr:'Riesgo evitado'},
+ 'K-S10':{n:'Incidentes de calidad o retirada de producto',u:'nº',topic:'Clientes y producto',anchor:'Calidad',sec:['PH'],fin:'F-23',vt:3,tr:'Riesgo evitado'},
+ 'K-S11':{n:'Tasa de defectos o retrabajo',u:'%',topic:'Clientes y producto',anchor:'Calidad de ejecución',sec:['CN'],fin:'F-25',vt:3,tr:'Riesgo evitado'},
+ 'K-S14':{n:'Personas alcanzadas por nuevos servicios o productos',u:'nº',topic:'Acceso y mercado',anchor:'Acceso',sec:['PH'],fin:'F-28',vt:2,tr:'Ingreso incremental'},
+ 'K-S16':{n:'Quejas comunitarias',u:'nº',topic:'Comunidades',anchor:'Aceptación social',sec:['CN'],fin:'F-15',vt:3,tr:'Riesgo evitado'},
+ 'K-G01':{n:'Cobertura de controles de conducta empresarial',u:'%',topic:'Gobernanza',anchor:'Controles internos',sec:['PH','CN'],fin:'F-16',vt:3,tr:'Riesgo evitado'},
+ 'K-G03':{n:'Puntuación de sostenibilidad reconocida por mercado',u:'score',topic:'Gobernanza y financiación',anchor:'Puntuación externa',sec:['PH','CN'],fin:'F-31',vt:4,tr:'Coste de capital'},
+ 'K-G04':{n:'Ingreso alineado con actividades sostenibles',u:'%',topic:'Finanzas sostenibles',anchor:'Ingresos sostenibles',sec:['PH','CN'],fin:'F-28',vt:4,tr:'Valoración'}
+};
+const VT={1:{l:'Coste operativo',c:'b-green'},2:{l:'Ingreso',c:'b-cobalt'},3:{l:'Riesgo evitado',c:'b-yellow'},4:{l:'Capital y valoración',c:'b-purple'}};
+const TRANSMISSIONS={
+ opex_reduction:{l:'Reducción de coste operativo recurrente',short:'Coste operativo',vt:1,c:'b-green',defaultCalc:'economic',desc:'Menor consumo, menor coste unitario o eficiencia sobre un gasto existente.',formula:'Base de coste × % reducción, o cantidad evitada × precio unitario'},
+ regulatory_cost_avoided:{l:'Coste regulatorio/fiscal evitado',short:'Coste regulatorio',vt:1,c:'b-green',defaultCalc:'physical',desc:'Menor carbon tax, tasa, canon, RAP, vertedero u otro precio regulatorio.',formula:'Exposición regulada evitada × precio regulatorio'},
+ risk_avoided:{l:'Riesgo evitado / pérdida esperada',short:'Riesgo evitado',vt:3,c:'b-yellow',defaultCalc:'economic',desc:'Reducción de probabilidad o severidad de multas, litigios, recalls, accidentes o interrupciones.',formula:'(Probabilidad antes − probabilidad después) × severidad × exposición'},
+ incremental_revenue:{l:'Ingreso incremental',short:'Ingreso incremental',vt:2,c:'b-cobalt',defaultCalc:'economic',desc:'Ventas nuevas por producto, cliente, segmento, mercado o premium price.',formula:'Ingresos incrementales × margen de contribución'},
+ protected_revenue:{l:'Ingreso protegido',short:'Ingreso protegido',vt:2,c:'b-cobalt',defaultCalc:'economic',desc:'Ventas, contratos, licencias o licitaciones que se protegen frente a pérdida o exclusión.',formula:'Ingresos en riesgo × probabilidad de pérdida evitada × margen'},
+ productivity_capacity:{l:'Productividad / capacidad liberada',short:'Productividad',vt:1,c:'b-green',defaultCalc:'frequency',desc:'Horas, días o capacidad recuperada por menor rotación, absentismo, accidentes o ineficiencias.',formula:'Horas/días/eventos evitados × coste unitario, o capacidad adicional × margen'},
+ capex_avoided:{l:'CapEx evitado, diferido o incremental',short:'CapEx / inversión',vt:1,c:'b-green',defaultCalc:'economic',desc:'Menor inversión futura, inversión diferida o CapEx incremental necesario para ejecutar la palanca.',formula:'CapEx base − CapEx con palanca, o inversión incremental neta'},
+ asset_value:{l:'Valor de activo / deterioro evitado',short:'Activos / deterioro',vt:3,c:'b-yellow',defaultCalc:'economic',desc:'Evita deterioros, stranded assets, pérdida de permisos o caída del valor residual.',formula:'Valor contable expuesto × % deterioro evitado'},
+ financing_capital:{l:'Financiación / coste de capital',short:'Financiación',vt:4,c:'b-purple',defaultCalc:'economic',desc:'Menor spread de deuda, prima de seguro, WACC, mejora de covenants o acceso a financiación sostenible.',formula:'Deuda afectada × Δspread × (1−tax), o DCF(WACC base) − DCF(WACC mejorado)'},
+ incentives:{l:'Incentivo, subvención o beneficio fiscal',short:'Incentivos',vt:1,c:'b-green',defaultCalc:'economic',desc:'Ayudas, grants, tax credits, certificados o deducciones vinculadas a la palanca.',formula:'Inversión elegible × % incentivo, o importe fiscal deducible'}
+};
+const SECTORS={PH:'Farmacéutico / Biotech',CN:'Construcción / Infraestructura',EN:'Energía y Utilities',AL:'Alimentación y Bebidas',RT:'Retail y Distribución',MF:'Industria y Manufactura',FN:'Banca y Servicios Financieros',TM:'Tecnología y Telecomunicaciones',AU:'Automoción',AG:'Agro y Recursos Naturales',OT:'Otro / Personalizado'};
+const SECTOR_SPECIFIC=['PH','CN']; // sectores con KPIs propios; el resto usa catálogo completo
+const FINANCING={cash:'Caja propia',debt:'Deuda',leasing:'Leasing',subsidy:'Subvención',performance:'Pago con ahorros'};
+const HELP={
+ companyName:'Nombre de la empresa o unidad que se va a analizar. Sirve para identificar el caso de negocio.',
+ sector:'Actividad principal de la compañía. Ayuda a mostrar variables de sostenibilidad más relevantes para ese tipo de negocio.',
+ geography:'Zona principal donde opera la compañía o donde se aplicarán las palancas. Afecta a los escenarios económicos.',
+ baseYear:'Último año con datos reales. El modelo proyecta los años siguientes desde este punto.',
+ horizon:'Número de años que se proyectarán. Usa más años cuando las inversiones tengan beneficios de largo plazo.',
+ revenue:'Ventas o ingresos del último año real, expresados en millones de euros.',
+ model:'Descripción sencilla de cómo gana dinero la compañía.',
+ perimeter:'Parte concreta de la compañía sobre la que aplica una palanca: toda la empresa, una planta, un país, un producto o una unidad de negocio.',
+ financialLine:'Variable económica afectada. Indica dónde se ve el impacto: ingresos, costes, inversión, riesgo o financiación.',
+ impactType:'Vía por la que la variable crea valor: reduce costes, aumenta ingresos, reduce riesgos o mejora financiación y valoración.',
+ transmission:'Forma sencilla de calcular el impacto económico. Por ejemplo, cantidad ahorrada multiplicada por precio.',
+ historical:'Dato real de los últimos años. Sirve para entender el punto de partida antes de proyectar.',
+ normalized:'Importe ajustado eliminando efectos excepcionales. Útil cuando un año no representa el comportamiento normal.',
+ fixedVariable:'Parte del coste que cambia con la actividad. Ayuda a estimar mejor márgenes e impactos de ventas.',
+ kpi:'Variable de sostenibilidad que la palanca quiere mejorar.',
+ leverName:'Nombre claro de la medida o iniciativa que se quiere evaluar.',
+ active:'Permite incluir o excluir la palanca del cálculo sin borrarla.',
+ exposure:'Importe económico sobre el que actúa la palanca. Por ejemplo, gasto energético anual afectado por una mejora de eficiencia.',
+ quantity:'Dato físico sobre el que actúa la palanca, como energía, toneladas, metros cúbicos, empleados o unidades vendidas.',
+ unitPrice:'Precio de cada unidad física. El modelo puede multiplicarlo por la cantidad para calcular la base económica.',
+ improvement:'Mejora esperada gracias a la palanca. El rango bajo, base y alto permite reflejar incertidumbre.',
+ capex:'Inversión inicial necesaria para poner en marcha la palanca. Normalmente afecta a caja, no solo al resultado contable.',
+ setupOpex:'Gasto inicial que no es inversión, como consultoría, formación o implantación. Reduce el flujo de caja después de impuestos.',
+ recurringOpex:'Gasto anual necesario para mantener la palanca funcionando.',
+ usefulLife:'Años durante los que la inversión genera beneficios económicos.',
+ residual:'Valor económico que queda al final del periodo proyectado.',
+ start:'Año en el que empiezan los impactos de la palanca.',
+ ramp:'Tiempo necesario para que la palanca alcance todo su efecto.',
+ tax:'Porcentaje de impuestos aplicado al beneficio incremental.',
+ wacc:'Rentabilidad mínima exigida para descontar flujos futuros. Cuanto mayor sea, menor será el valor actual.',
+ terminal:'Valor de los beneficios que continúan después del último año proyectado.',
+ irr:'Rentabilidad anual estimada de la inversión considerando sus flujos de caja.',
+ payback:'Año en el que la inversión queda recuperada con los beneficios generados.',
+ bcr:'Beneficio actualizado dividido entre inversión actualizada. Un valor superior a uno indica que el beneficio supera el coste.',
+ overlap:'Porcentaje de impacto que se repite entre dos palancas. Sirve para no contar dos veces el mismo ahorro o beneficio.',
+ probabilityBefore:'Probabilidad de que ocurra un evento negativo si no se aplica la palanca.',
+ probabilityAfter:'Probabilidad de que ocurra el evento negativo después de aplicar la palanca.',
+ eventCost:'Coste económico si ocurre el evento negativo.',
+ severity:'Escenario de gravedad del evento negativo.',
+ financing:'Forma de pagar la inversión o los costes iniciales de la palanca.',
+ debtPct:'Parte de la inversión que se financia con deuda.',
+ debtRate:'Coste anual de la deuda usada para financiar la palanca.',
+ multiple:'Número de veces el beneficio operativo usado para estimar el valor de empresa por múltiplos.',
+ source:'Origen del dato o supuesto. Puede ser dato real, estimación interna, benchmark o hipótesis de trabajo.',
+ confidence:'Nivel de confianza del supuesto. Ayuda a revisar los datos más débiles antes de presentar el caso.',
+ scenario:'Conjunto de hipótesis externas y de ejecución que afectan al resultado futuro.',
+ sensitivity:'Prueba que muestra qué supuestos cambian más el valor del caso.',
+ montecarlo:'Simulación que calcula muchos resultados posibles para medir incertidumbre y probabilidad de éxito.',
+ calcMethod:'Elige si quieres calcular la palanca a partir de un importe en euros o a partir de una cantidad física multiplicada por un precio unitario.',
+ uncertainty:'Nivel de incertidumbre del supuesto. El modelo genera automáticamente un caso bajo y alto alrededor de la mejora base.',
+ residualAsset:'Valor recuperable del activo al final del periodo proyectado. Se calcula sobre la inversión neta realizada.',
+ terminalBenefit:'Valor de los beneficios que seguirían existiendo después del último año proyectado. Se calcula sobre el beneficio recurrente, no sobre el activo.',
+ advanced:'Muestra campos adicionales para refinar el cálculo cuando el caso lo requiere.'
+};
+/* ============================ ESTADO ============================ */
+const PAGES=[
+ ['config','Configuración'],['financials','Base financiera'],['database','Base de datos'],['levers','Palancas'],
+ ['asg','Datos ASG'],['leverdata','Supuestos de palancas'],['scenarios','Escenarios'],['overlaps','Solapamientos'],
+ ['results','Resultados'],['capital','Asignación de capital'],['inaction','Coste de inacción'],['sens','Sensibilidad y Monte Carlo'],['case','Investment case'],['detail','Detalle de cálculos'],['audit','Registro de supuestos'],['method','Metodología']
+];
+let STATE=blankState();
+let RESULTS_VIEW={band:'base',resultsTab:'exec',sensVar:'wacc',leverCollapsed:{}};
+let lid=1,uvid=1,ufid=1,pid=1;
+function blankState(){return {
+ page:'config',
+ company:{name:'',sector:'PH',asg:'B',revenue:0,model:'',geography:'Global',baseYear:2025,horizon:5,currency:'€M'},
+ perimeters:[{id:'P0',name:'Toda la compañía',type:'Compañía',geography:'Global',shareRevenue:100,description:'Perímetro completo de análisis'}],
+ fin:{
+   revenue:[0,0,0],cogs:[0,0,0],sga:[0,0,0],da:[0,0,0],ebitdaAdj:[0,0,0],extraordinary:[0,0,0],capex:[0,0,0],
+   energyCost:[0,0,0],carbonCost:[0,0,0],materialCost:[0,0,0],personnelCost:[0,0,0],waterWasteCost:[0,0,0],qualityCost:[0,0,0],
+   employees:[0,0,0],netFinancial:[0,0,0],wc:[0,0,0],netDebt:[0,0,0],equity:[0,0,0],
+   taxRate:25,wacc:8.5,costDebt:5.2,costEquity:10.5,terminalGrowth:1.5,ebitdaMultiple:8.0,baseEV:0,variableCostPct:65,
+   waccMode:'manual',debtWeight:35,terminalDefault:false,fadeYears:0,
+   riskPremium:{Alta:0,Media:1.5,Baja:3.5}
+ },
+ levers:[],
+ kpidata:{},
+ overlaps:{},
+ scenario:{
+   macroPreset:'Base',geography:'Global',sectorPreset:'Base',executionPreset:'Base',financePreset:'Base',
+   macro:{revGrowth:[3,3,3,3,3],ipc:[3,2.6,2.3,2.1,2],energy:[6,4,3,3,2.5],material:[3,3,2.5,2.5,2],labor:[4,3.5,3,3,2.8],carbon:[90,100,110,120,130]},
+   sector:{demandAdj:[0,0,0,0,0],priceAdj:[0,0,0,0,0],marginAdj:[0,0,0,0,0],competitivePressure:0},
+   execution:{successRate:90,delayMonths:0,adoption:100,costOverrun:0},
+   finance:{waccAdj:0,debtCostAdj:0,multipleAdj:0}
+ },
+ monteCarlo:{iterations:750,seed:42,last:null,params:{priceShockSigma:8,successMin:75,successMax:110,capexShockMin:-15,capexShockMax:50,waccSigma:0.8}}
+};}
+/* ============================ UTILIDADES ============================ */
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+// Parser numérico tolerante a formato europeo y anglosajón.
+function parseNumericInput(v,d=0){
+ if(v===null||v===undefined||v==='')return d;
+ if(typeof v==='number')return isFinite(v)?v:d;
+ let s=String(v).trim();
+ if(!s)return d;
+ s=s.replace(/\s+/g,'').replace(/[€$£%]/g,'');
+ s=s.replace(/[^0-9,\.\-+]/g,'');
+ if(!s||s==='-'||s==='+')return d;
+ const hasComma=s.includes(','),hasDot=s.includes('.');
+ if(hasComma&&hasDot){
+   if(s.lastIndexOf(',')>s.lastIndexOf('.'))s=s.replace(/\./g,'').replace(',', '.');
+   else s=s.replace(/,/g,'');
+ }else if(hasComma){
+   const parts=s.split(',');
+   if(parts.length>2){const dec=parts.pop();s=parts.join('')+'.'+dec;}else{s=s.replace(',', '.');}
+ }else if(hasDot){
+   if(/^[-+]?\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+ }
+ const n=Number(s);
+ return isFinite(n)?n:d;
+}
+const num=(v,d=0)=>parseNumericInput(v,d);
+function formatNumberEs(v,opts={}){
+ const n=num(v,null);
+ if(n===null||!isFinite(n))return v==null?'':String(v);
+ const max=opts.maxFractionDigits??2;
+ const min=opts.minFractionDigits??0;
+ const grouping=opts.useGrouping!==false;
+ return n.toLocaleString('es-ES',{useGrouping:grouping,minimumFractionDigits:min,maximumFractionDigits:max});
+}
+function shouldAvoidGrouping(inp){
+ const id=(inp.id||'').toLowerCase();
+ if(id.includes('year')||id==='c_year')return true;
+ const label=(inp.closest('div')?.querySelector('label')?.textContent||'').toLowerCase();
+ return label.includes('año base fiscal');
+}
+function decimalsForInput(inp){
+ const label=(inp.closest('div')?.querySelector('label')?.textContent||'').toLowerCase();
+ if(label.includes('año')||label.includes('plazo')||label.includes('vida útil')||label.includes('iteraciones')||label.includes('semilla'))return 0;
+ if(label.includes('%')||label.includes('wacc')||label.includes('coste de la deuda')||label.includes('tipo impositivo'))return 2;
+ return 2;
+}
+function formatNumericInput(inp){
+ if(!inp||inp.value==='')return;
+ inp.value=formatNumberEs(inp.value,{maximumFractionDigits:decimalsForInput(inp),useGrouping:!shouldAvoidGrouping(inp)});
+}
+function enhanceNumericInputs(){
+ document.querySelectorAll('input[type="number"], input.numeric-input').forEach(inp=>{
+   inp.type='text';
+   inp.inputMode='decimal';
+   inp.autocomplete='off';
+   inp.classList.add('numeric-input');
+   inp.removeAttribute('title');
+   if(inp.placeholder&&inp.placeholder.includes('1.250'))inp.placeholder='';
+   if(!inp.dataset.autoformatBound){
+     inp.dataset.autoformatBound='1';
+     inp.addEventListener('blur',()=>formatNumericInput(inp));
+   }
+   formatNumericInput(inp);
+ });
+}
+function formatNote(extra=''){return '';}
+const fmt=x=>'€'+(x>=0?'':'-')+Math.abs(x||0).toFixed(1)+'M';
+const fmtp=x=>(x>=0?'':'-')+Math.abs(x||0).toFixed(1)+'%';
+const pct=x=>(x*100).toFixed(1)+'%';
+function label(key,text){return `<label class="fld">${esc(text)} <span class="help-q" tabindex="0" onclick="showHelp(event,'${key}','${esc(text)}')">?</span></label>`;}
+function showHelp(ev,key,title){ev.stopPropagation();const p=document.getElementById('helpPop');p.innerHTML=`<b>${title}</b>${esc(HELP[key]||'Campo de entrada del modelo.')}`;p.style.display='block';const r=ev.target.getBoundingClientRect();p.style.left=Math.min(window.innerWidth-350,r.left+8)+'px';p.style.top=(r.bottom+8)+'px';}
+document.addEventListener('click',()=>{const p=document.getElementById('helpPop');if(p)p.style.display='none';});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=document.getElementById('helpPop');if(p)p.style.display='none';}});
+function getYearLabels(){const by=STATE.company.baseYear||2025;return [by-2,by-1,by];}
+function projYears(){const by=STATE.company.baseYear||2025,h=STATE.company.horizon||5;return Array.from({length:h},(_,i)=>by+i+1);}
+function index(rate,t){return Math.pow(1+rate/100,t);} 
+function arrVal(a,i,def=0){return Array.isArray(a)?num(a[Math.min(i,a.length-1)],def):def;}
+// Ajuste de WACC por rating de sostenibilidad: A=−0.25pp, B=0, C=+0.25pp, D=+0.5pp
+function asgWaccAdj(){const map={A:-0.25,B:0,C:0.25,D:0.5};return map[STATE.company.asg]??0;}
+// WACC corporativo por build-up: Ke·E/V + Kd·(1−t)·D/V, con ajuste por rating ASG
+function corporateWacc(){const f=STATE.fin;const base=f.waccMode!=='buildup'?f.wacc||8.5:(()=>{const d=Math.min(100,Math.max(0,f.debtWeight||0))/100,e=1-d,t=(f.taxRate||0)/100;return e*(f.costEquity||10.5)+d*(f.costDebt||5.2)*(1-t);})();return Math.max(0.5,base+asgWaccAdj());}
+// Prima de riesgo por palanca según confianza declarada (risk-adjusted discount rate)
+function leverRiskPremium(l){const rp=STATE.fin.riskPremium||{Alta:0,Media:1.5,Baja:3.5};return rp[l.confidence]!=null?rp[l.confidence]:(rp[l.uncertainty]||0);}
+// Tabla de referencia: tipo impositivo y precio de carbono inicial sugeridos por geografía
+function geoDefaults(geo){return {Global:{tax:25,carbon:90},'Unión Europea':{tax:25,carbon:65},'Estados Unidos':{tax:21,carbon:15},Nacional:{tax:25,carbon:65}}[geo]||{tax:25,carbon:90};}
+function applyGeoDefaults(geo){const d=geoDefaults(geo);if(confirm(`¿Aplicar valores de referencia para ${geo}?\n· Tipo impositivo: ${d.tax}%\n· Precio de carbono inicial: ${d.carbon} €/tCO₂e`)){STATE.fin.taxRate=d.tax;STATE.scenario.macro.carbon[0]=d.carbon;alert('Valores aplicados. Revisa Base financiera y Escenarios.');}}
+// KPIs disponibles según sector: si el sector es genérico, muestra todo el catálogo
+function kpisForSector(sec){if(!SECTOR_SPECIFIC.includes(sec))return Object.entries(KPIS);return Object.entries(KPIS).filter(([,v])=>v.sec.includes(sec));}
+function kpiRelevance(v,sec){if(v.sec.includes(sec))return {label:'Alta',cls:'b-green'};return {label:'General',cls:'b-grey'};}
+// ¿Cubre el escenario todo el horizonte explícitamente?
+function macroCoversHorizon(){const h=STATE.company.horizon||5;return (STATE.scenario.macro.revGrowth||[]).length>=h;}
+// Plantilla de cálculo sugerida por la variable ASG (híbrido: por defecto, cambiable)
+const FREQ_KPIS=['K-S01','K-S05']; // rotación, accidentabilidad → frecuencia × coste evitado
+function legacyTransmissionFromKpi(kpi){
+ const v=KPIS[kpi]||{},fin=v.fin||'';
+ if(v.vt===3)return 'risk_avoided';
+ if(v.vt===4)return 'financing_capital';
+ if(v.vt===2){return fin==='F-24'?'protected_revenue':'incremental_revenue';}
+ if(['F-02','F-03','F-07','F-09'].includes(fin))return 'regulatory_cost_avoided';
+ if(['K-S01','K-S03','K-S05'].includes(kpi))return 'productivity_capacity';
+ return 'opex_reduction';
+}
+function getTransmissionKey(l){return (l&&l.transmission&&TRANSMISSIONS[l.transmission])?l.transmission:legacyTransmissionFromKpi(l?.kpi);}
+function getTransmission(l){return TRANSMISSIONS[getTransmissionKey(l)]||TRANSMISSIONS.opex_reduction;}
+function getLeverVt(l){return getTransmission(l).vt;}
+function transmissionBadge(l){const t=getTransmission(l);return `<span class="vt ${t.c}">${esc(t.short||t.l)}</span>`;}
+function transmissionOptions(selected){return Object.entries(TRANSMISSIONS).map(([k,t])=>`<option value="${k}" ${selected===k?'selected':''}>${t.l}</option>`).join('');}
+function leverFinVar(l){return (l&&l.finVar)||KPIS[l?.kpi]?.fin||'F-01';}
+function suggestedFinVar(kpi,transmission){const v=KPIS[kpi]||{},t=transmission||legacyTransmissionFromKpi(kpi);
+ if(t==='regulatory_cost_avoided')return ['K-E03','K-E04'].includes(kpi)?'F-02':(v.fin||'F-02');
+ if(t==='risk_avoided')return ['K-S10'].includes(kpi)?'F-23':'F-16';
+ if(t==='incremental_revenue')return 'F-28';
+ if(t==='protected_revenue')return 'F-24';
+ if(t==='financing_capital')return 'F-31';
+ if(t==='productivity_capacity')return v.fin||'F-14';
+ if(t==='incentives')return 'F-15';
+ return v.fin||'F-01';
+}
+function suggestedCalcMethod(kpi,transmission){
+ const t=TRANSMISSIONS[transmission||legacyTransmissionFromKpi(kpi)];
+ const v=KPIS[kpi]||{};
+ const tr=String(v.tr||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/×/g,'x');
+ if(t?.defaultCalc)return t.defaultCalc;
+ if(FREQ_KPIS.includes(kpi))return 'frequency';
+ if(tr.includes('cantidad')&&tr.includes('precio'))return 'physical';
+ return 'economic';
+}
+function leverCalcMethod(l){return l.calcMethod || suggestedCalcMethod(l.kpi,getTransmissionKey(l));}
+function freqImprovement(l){const rb=num(l.freqRateBefore,0),ra=num(l.freqRateAfter,0);return rb>0?Math.max(0,(rb-ra)/rb*100):0;}
+// Sincroniza el rango de mejora (d) de una palanca de frecuencia desde sus tasas
+function syncFreqLever(l){if(leverCalcMethod(l)!=='frequency')return;const imp=freqImprovement(l);if(!l.d)l.d={low:0,base:0,high:0};l.d.base=+imp.toFixed(1);applyUncertainty(l);}
+function normalizeLever(l){
+ if(!l)return l;
+ if(!l.transmission)l.transmission=legacyTransmissionFromKpi(l.kpi);
+ if(!l.finVar)l.finVar=suggestedFinVar(l.kpi,l.transmission);
+ if(!l.calcMethod)l.calcMethod=suggestedCalcMethod(l.kpi,l.transmission);
+ if(!l.uncertainty)l.uncertainty='Media';
+ if(l.advanced==null)l.advanced=false;
+ if(l.useCapex==null)l.useCapex=(l.capex||0)>0;
+ if(l.useSetup==null)l.useSetup=(l.setupOpex||0)>0;
+ if(l.useRecurring==null)l.useRecurring=(l.recurringOpex||0)>0;
+ if(l.useSubsidy==null)l.useSubsidy=(l.subsidy||0)>0;
+ if(l.useResidual==null)l.useResidual=(l.residualPct||0)>0;
+ if(l.terminal==null)l.terminal=true;
+ if(l.intensityDelta==null)l.intensityDelta=0;
+ if(l.freqVolume==null)l.freqVolume=0;
+ if(l.freqRateBefore==null)l.freqRateBefore=0;
+ if(l.freqRateAfter==null)l.freqRateAfter=0;
+ if(l.freqUnitCost==null)l.freqUnitCost=0;
+ if(!l.risk)l.risk={probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0};
+ return l;
+}
+function uncertaintyFactors(level){return level==='Baja'?[0.8,1.2]:level==='Alta'?[0.4,1.8]:[0.6,1.4];}
+function applyUncertainty(l){const base=num(l.d?.base,0);if(!l.d)l.d={low:0,base:0,high:0};const [lo,hi]=uncertaintyFactors(l.uncertainty||'Media');l.d.low=+(base*lo).toFixed(1);l.d.high=+(base*hi).toFixed(1);}
+function cagr(a,b,n){return a>0&&b>0&&n>0?(Math.pow(b/a,1/n)-1)*100:null;}
+function downloadBlob(filename,content,type='text/plain'){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+function saveToLocal(){localStorage.setItem('sva_cf_model',JSON.stringify({STATE,FIN_VARS,KPIS,lid,uvid,ufid,pid}));alert('Modelo guardado en este navegador.');}
+function loadFromLocal(){const raw=localStorage.getItem('sva_cf_model');if(!raw){alert('No hay modelo guardado.');return;}const obj=JSON.parse(raw);STATE=obj.STATE||STATE;FIN_VARS=obj.FIN_VARS||FIN_VARS;KPIS=obj.KPIS||KPIS;lid=obj.lid||lid;uvid=obj.uvid||uvid;ufid=obj.ufid||ufid;pid=obj.pid||pid;render();}
+/* ============================ NAV ============================ */
+function renderNav(){
+ const nav=document.getElementById('nav'); if(!nav)return;
+ nav.innerHTML=PAGES.map((p,i)=>`<div class="sidebar-step ${STATE.page===p[0]?'active':''}" onclick="go('${p[0]}')"><span class="step-num">${i+1}</span><span>${p[1]}</span></div>`).join('');
+}
+function go(pg){STATE.page=pg;safeRender();}
+function render(){
+ renderNav();
+ const page=PAGES.find(p=>p[0]===STATE.page)||PAGES[0];
+ const hdr=document.getElementById('hdr'); if(hdr)hdr.textContent=page[1];
+ const c=document.getElementById('content');
+ const renderer={config:renderConfig,financials:renderFinancials,database:renderDatabase,levers:renderLevers,asg:renderAsgData,leverdata:renderLeverData,scenarios:renderScenarios,overlaps:renderOverlaps,results:renderResults,capital:renderCapital,inaction:renderInaction,sens:renderSens,case:renderCase,detail:renderDetail,audit:renderAudit,method:renderMethod}[STATE.page]||renderConfig;
+ renderer(c);
+ enhanceNumericInputs();
+}
+function safeRender(){
+ try{render();}
+ catch(e){
+   console.error('SVA render error:',e);
+   renderNav();
+   const c=document.getElementById('content');
+   if(c)c.innerHTML=`<div class="note"><b>Se ha producido un error al cargar esta vista.</b><br>El menú lateral se mantiene disponible. Prueba a volver a Configuración o carga el ejemplo. Detalle técnico: ${esc(e.message||e)}</div>`;
+ }
+}
+window.go=go;
+/* ============================ 1 CONFIG ============================ */
+function renderConfig(c){const s=STATE.company;c.innerHTML=`
+<h2 class="section-title">1 · Configuración del caso</h2>
+<p class="section-lead">Define el perímetro del análisis, horizonte temporal y contexto económico. Esta pestaña fija la estructura común del modelo.</p>
+${formatNote('En configuración, los ingresos se introducen en <b>millones de euros (€M)</b>; los años y horizontes se introducen como números enteros.')}
+<div class="card"><h3>Datos generales</h3><div class="grid4">
+ <div>${label('companyName','Nombre de la compañía')}<input id="c_name" value="${esc(s.name)}"></div>
+ <div>${label('sector','Sector')}<select id="c_sector" onchange="document.getElementById('c_sector_custom_row').style.display=this.value==='OT'?'block':'none'">${Object.entries(SECTORS).map(([k,v])=>`<option value="${k}" ${s.sector===k?'selected':''}>${v}</option>`).join('')}</select><div id="c_sector_custom_row" style="display:${s.sector==='OT'?'block':'none'};margin-top:6px"><input id="c_sector_custom" placeholder="Nombre del sector personalizado" value="${esc(s.sectorCustom||'')}"></div></div>
+ <div>${label('geography','Geografía principal')}<select id="c_geo">${['Global','Unión Europea','Estados Unidos','Nacional'].map(x=>`<option ${s.geography===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint" style="margin-top:4px"><a href="#" style="color:var(--cobalt);font-size:11px" onclick="event.preventDefault();applyGeoDefaults(document.getElementById('c_geo').value)">Aplicar tipo impositivo y carbono de referencia →</a></div></div>
+ <div>${label('baseYear','Año base fiscal')}<input id="c_year" type="number" value="${s.baseYear}"></div>
+ <div>${label('horizon','Horizonte de proyección')}<select id="c_horizon">${[5,7,10,15].map(x=>`<option value="${x}" ${s.horizon==x?'selected':''}>${x} años</option>`).join('')}</select></div>
+ <div>${label('revenue','Ingresos base (€M)')}<input id="c_rev" type="number" value="${s.revenue||''}"></div>
+ <div>${label('model','Modelo de negocio')}<input id="c_model" value="${esc(s.model)}" placeholder="p.ej. fabricante integrado, concesional…"></div>
+ <div>${label('source','Rating de sostenibilidad')}<select id="c_asg">${['A','B','C','D'].map(x=>`<option ${s.asg===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint">A = referente · D = rezagado. Ajusta el WACC en ${({A:'−0,25',B:'0',C:'+0,25',D:'+0,50'})[s.asg]??'0'} pp.</div></div>
+</div>
+<div class="note" style="margin-top:10px"><b>Rating ASG:</b> el rating interno de sostenibilidad ajusta el coste medio del capital (WACC) de la compañía: A −0,25 pp · B sin cambio · C +0,25 pp · D +0,50 pp. Un rating mejor refleja menor prima de riesgo reputacional y mejor acceso a financiación sostenible.</div>
+<div class="row-actions"><button class="btn primary" onclick="saveConfig()">Guardar configuración</button></div></div>
+<div class="card"><h3>Perímetros de análisis</h3><p class="hint" style="margin-top:-8px">Permite aplicar cada palanca a toda la compañía o a una parte concreta. Evita usar bases financieras demasiado amplias.</p>
+ <div class="grid5">
+  <div>${label('perimeter','Nombre del perímetro')}<input id="p_name" placeholder="p.ej. Planta Madrid"></div>
+  <div>${label('perimeter','Tipo')}<select id="p_type"><option>Compañía</option><option>País</option><option>Planta</option><option>Producto</option><option>Unidad de negocio</option></select></div>
+  <div>${label('geography','Geografía')}<input id="p_geo" placeholder="p.ej. España"></div>
+  <div>${label('revenue','% de ingresos')}<input id="p_rev" type="number" value="100"></div>
+  <div style="align-self:end"><button class="btn" onclick="addPerimeter()">+ Añadir perímetro</button></div>
+ </div>
+ <div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>Perímetro</th><th>Tipo</th><th>Geografía</th><th class="right">% ingresos</th><th></th></tr></thead><tbody>${STATE.perimeters.map(p=>`<tr><td><b>${esc(p.name)}</b><div class="hint">${esc(p.description||'')}</div></td><td>${esc(p.type)}</td><td>${esc(p.geography)}</td><td class="right">${num(p.shareRevenue).toFixed(0)}%</td><td class="right">${p.id==='P0'?'<span class="muted">base</span>':`<button class="btn sm danger" onclick="removePerimeter('${p.id}')">✕</button>`}</td></tr>`).join('')}</tbody></table></div>
+</div>`;}
+function saveConfig(){const g=id=>document.getElementById(id);const newYear=num(g('c_year').value,2025);if(newYear!==STATE.company.baseYear&&STATE.fin.revenue.some(x=>x)){if(!confirm(`Cambias el año base de ${STATE.company.baseYear} a ${newYear}. Las etiquetas de columnas en Base financiera cambiarán pero los datos no se reordenan. ¿Continuar?`))return;}const sec=g('c_sector').value;STATE.company={...STATE.company,name:g('c_name').value,sector:sec,sectorCustom:sec==='OT'?(g('c_sector_custom')?.value||''):'',asg:g('c_asg').value,revenue:num(g('c_rev').value),model:g('c_model').value,geography:g('c_geo').value,baseYear:newYear,horizon:num(g('c_horizon').value,5)};STATE.fin.revenue[2]=STATE.fin.revenue[2]||STATE.company.revenue;go('financials');}
+function addPerimeter(){const g=id=>document.getElementById(id);const name=g('p_name').value.trim();if(!name){alert('Indica el nombre del perímetro.');return;}STATE.perimeters.push({id:'P'+(pid++),name,type:g('p_type').value,geography:g('p_geo').value||STATE.company.geography,shareRevenue:num(g('p_rev').value,100),description:''});renderConfig(document.getElementById('content'));}
+function removePerimeter(id){if(STATE.levers.some(l=>l.perimeter===id)){alert('Hay palancas que usan este perímetro. Cambia esas palancas antes de eliminarlo.');return;}STATE.perimeters=STATE.perimeters.filter(p=>p.id!==id);renderConfig(document.getElementById('content'));}
+/* ============================ 2 FINANCIERAS ============================ */
+function renderFinancials(c){const f=STATE.fin,yrs=getYearLabels();const block=(title,rows)=>`<div class="card"><h3>${title}</h3><div class="tbl-wrap"><table><thead><tr><th>Línea</th><th class="right">${yrs[0]}</th><th class="right">${yrs[1]}</th><th class="right">${yrs[2]} real</th><th class="right">Crec. anual</th><th>Notas</th></tr></thead><tbody>${rows.map(([k,lbl,hint])=>{const cg=cagr(f[k][0],f[k][2],2);return `<tr><td><b>${lbl}</b>${hint?`<div class="hint">${hint}</div>`:''}</td>${[0,1,2].map(i=>`<td><input type="number" value="${f[k][i]||''}" onchange="setFin('${k}',${i},this.value)" style="width:105px"></td>`).join('')}<td class="right">${cg==null?'—':fmtp(cg)}</td><td><input value="" placeholder="fuente o ajuste"></td></tr>`}).join('')}</tbody></table></div></div>`;
+c.innerHTML=`<h2 class="section-title">2 · Base financiera</h2><p class="section-lead">Recoge el histórico, normaliza efectos extraordinarios y define parámetros de valoración. Esta pestaña alimenta el flujo de caja libre y la valoración.</p>
+${formatNote('En la base financiera, todos los importes monetarios se introducen en <b>€M</b>. Excepción: <b>número de empleados</b> se introduce en personas; tasas como WACC o impuesto se introducen en %.')}
+${block('Cuenta de resultados y normalización (€M)',[['revenue','Ingresos','Ventas totales de la compañía o perímetro analizado.'],['cogs','Coste de ventas','Costes directamente vinculados al producto o servicio.'],['sga','Gastos comerciales, generales y administrativos','Costes de estructura y soporte.'],['da','Amortización contable','Pérdida contable de valor de activos.'],['ebitdaAdj','Ajustes a EBITDA','Ajustes positivos o negativos para reflejar un año normal.'],['extraordinary','Partidas extraordinarias','Eventos no recurrentes que conviene separar.'],['netFinancial','Resultado financiero neto','Gastos financieros menos ingresos financieros.']])}
+${block('Costes expuestos a palancas (€M salvo empleados)',[['energyCost','Gasto energético','Base para palancas de energía.'],['carbonCost','Coste de carbono','Base para precio de carbono o derechos de emisión.'],['materialCost','Gasto en materiales','Base para materias primas, envases o materiales críticos.'],['personnelCost','Coste total de personal','Base para rotación, productividad y contratación.'],['waterWasteCost','Gasto en agua y residuos','Base para agua, efluentes y residuos.'],['qualityCost','Costes de calidad, retrabajo o garantía','Base para palancas de calidad y producto.'],['employees','Número de empleados','Dato físico, no monetario.']])}
+${block('Inversión, caja y estructura de capital (€M)',[['capex','Inversión anual','Inversiones de mantenimiento o crecimiento.'],['wc','Capital circulante neto','Caja atrapada en clientes, inventarios y proveedores.'],['netDebt','Deuda financiera neta','Deuda menos caja disponible.'],['equity','Patrimonio neto','Fondos propios contables.']])}
+<div class="card"><h3>Coste de capital (WACC)</h3><div class="grid4">
+ <div>${label('wacc','¿Cómo defines el WACC?')}<select onchange="STATE.fin.waccMode=this.value;renderFinancials(document.getElementById('content'))"><option value="manual" ${f.waccMode!=='buildup'?'selected':''}>Lo introduzco directamente</option><option value="buildup" ${f.waccMode==='buildup'?'selected':''}>Calcularlo desde la estructura de capital</option></select></div>
+ ${f.waccMode==='buildup'?`
+   <div>${label('costEquity','Coste del equity (Ke)')}<input type="number" step="0.1" value="${f.costEquity}" onchange="STATE.fin.costEquity=num(this.value);renderRatios()"></div>
+   <div>${label('financing','Coste de la deuda (Kd)')}<input type="number" step="0.1" value="${f.costDebt}" onchange="STATE.fin.costDebt=num(this.value);renderRatios()"></div>
+   <div>${label('financing','% deuda en la estructura')}<input type="number" step="1" value="${f.debtWeight}" onchange="STATE.fin.debtWeight=num(this.value);renderRatios()"></div>
+   <div class="summary-card" style="grid-column:1/3"><div class="lbl">WACC resultante (incl. ajuste ASG)</div><div class="value" style="font-size:1.3rem">${corporateWacc().toFixed(2)}%</div><div class="sub">Ke·E/V + Kd·(1−t)·D/V ${asgWaccAdj()!==0?`<span style="color:${asgWaccAdj()<0?'var(--green)':'var(--red)'}">${asgWaccAdj()>0?'+':''}${asgWaccAdj().toFixed(2)} pp (Rating ${STATE.company.asg})</span>`:''}</div></div>`
+  :`<div>${label('wacc','WACC (%)')}<input type="number" step="0.1" value="${f.wacc}" onchange="STATE.fin.wacc=num(this.value);renderRatios()"></div>
+   <div>${label('financing','Coste de la deuda (%)')}<input type="number" step="0.1" value="${f.costDebt}" onchange="STATE.fin.costDebt=num(this.value)"></div>
+   <div class="summary-card" style="grid-column:3/5"><div class="lbl">WACC efectivo (Rating ASG: ${STATE.company.asg||'B'})</div><div class="value" style="font-size:1.25rem">${corporateWacc().toFixed(2)}%</div><div class="sub">${asgWaccAdj()!==0?`Ajuste ASG: <span style="color:${asgWaccAdj()<0?'var(--green)':'var(--red)'}">${asgWaccAdj()>0?'+':''}${asgWaccAdj().toFixed(2)} pp</span>. Cambia el Rating en Configuración.`:'Sin ajuste (Rating B = neutro). Cambia el Rating en Configuración.'}</div></div>`}
+ </div>
+ <div class="grid4" style="margin-top:10px">
+   <div>${label('uncertainty','Prima de riesgo — confianza Media (pp)')}<input type="number" step="0.1" value="${f.riskPremium.Media}" onchange="STATE.fin.riskPremium.Media=num(this.value)"></div>
+   <div>${label('uncertainty','Prima de riesgo — confianza Baja (pp)')}<input type="number" step="0.1" value="${f.riskPremium.Baja}" onchange="STATE.fin.riskPremium.Baja=num(this.value)"></div>
+   <div class="hint" style="grid-column:3/5;align-self:center">Cada palanca se descuenta al WACC más una prima según su confianza declarada: las palancas especulativas pagan una tasa mayor que las cuasi-ciertas.</div>
+ </div></div>
+<div class="card"><h3>Parámetros de valoración y fiscalidad</h3><div class="grid4">
+ <div>${label('tax','Tipo impositivo efectivo')}<input type="number" step="0.1" value="${f.taxRate}" onchange="STATE.fin.taxRate=num(this.value);renderRatios()"></div>
+ <div>${label('terminal','¿Incluir valor terminal?')}<select onchange="STATE.fin.terminalDefault=this.value==='true'"><option value="false" ${!f.terminalDefault?'selected':''}>No (recomendado)</option><option value="true" ${f.terminalDefault?'selected':''}>Sí</option></select><div class="hint">Si se activa, la perpetuidad usa g=0 para ahorros de coste.</div></div>
+ <div>${label('terminal','Crecimiento a largo plazo (g)')}<input type="number" step="0.1" value="${f.terminalGrowth}" onchange="STATE.fin.terminalGrowth=num(this.value)"></div>
+ <div>${label('terminal','Años de convergencia (fade)')}<input type="number" step="1" value="${f.fadeYears}" onchange="STATE.fin.fadeYears=num(this.value)"><div class="hint">0 = la ventaja se mantiene. >0 = converge a cero en N años (anula el terminal).</div></div>
+ <div>${label('multiple','Múltiplo EBITDA sectorial')}<input type="number" step="0.1" value="${f.ebitdaMultiple}" onchange="STATE.fin.ebitdaMultiple=num(this.value)"></div>
+ <div>${label('fixedVariable','% de costes variables')}<input type="number" step="1" value="${f.variableCostPct}" onchange="STATE.fin.variableCostPct=num(this.value)"></div>
+ <div>${label('source','Valor de empresa actual (€M)')}<input type="number" step="1" value="${f.baseEV||''}" onchange="STATE.fin.baseEV=num(this.value)"></div>
+</div></div><div class="card"><h3>Ratios autocalculados del año base</h3><div id="ratios"></div></div>`;renderRatios();}
+function setFin(k,i,v){STATE.fin[k][i]=num(v);renderRatios();}
+function renderRatios(){const el=document.getElementById('ratios');if(!el)return;const f=STATE.fin,r=f.revenue[2]||STATE.company.revenue||0;const ebitda=r-(f.cogs[2]||0)-(f.sga[2]||0)+(f.ebitdaAdj[2]||0);const ebit=ebitda-(f.da[2]||0);const ebt=ebit-(f.netFinancial[2]||0);const net=ebt*(1-(f.taxRate||0)/100);const fcff=ebit*(1-(f.taxRate||0)/100)+(f.da[2]||0)-(f.capex[2]||0)-((f.wc[2]||0)-(f.wc[1]||0));const p=x=>r?((x/r)*100).toFixed(1)+'%':'—';const ratio=(a,b)=>b?(a/b).toFixed(2)+'×':'—';const items=[['EBITDA normalizado',fmt(ebitda)],['Margen EBITDA',p(ebitda)],['EBIT',fmt(ebit)],['Margen EBIT',p(ebit)],['Resultado neto',fmt(net)],['Flujo de caja libre estimado',fmt(fcff)],['CapEx / ingresos',p(f.capex[2])],['Capital circulante / ingresos',p(f.wc[2])],['Deuda neta / EBITDA',ratio(f.netDebt[2],ebitda)],['Deuda neta / patrimonio',ratio(f.netDebt[2],f.equity[2])],['Energía / ingresos',p(f.energyCost[2])],['Personal / ingresos',p(f.personnelCost[2])]];el.innerHTML=`<div class="grid4">${items.map(([l,v])=>`<div class="summary-card"><div class="lbl">${l}</div><div class="value" style="font-size:1.18rem">${v}</div></div>`).join('')}</div>`;}
+/* ============================ 3 DATABASE ============================ */
+function renderDatabase(c){const sec=STATE.company.sector;c.innerHTML=`<h2 class="section-title">3 · Base de datos</h2><p class="section-lead">Gestiona catálogos neutros. Las variables ASG describen qué cambia; la monetización se decide después en cada palanca mediante la vía de transmisión financiera.</p>
+<div class="card"><h3>Variables financieras</h3><div class="grid5">
+ <div>${label('financialLine','Nombre')}<input id="fv_name" placeholder="p.ej. Coste de embalaje"></div>
+ <div>${label('financialLine','Línea financiera')}<input id="fv_line" placeholder="p.ej. Coste de ventas"></div>
+ <div>${label('impactType','Tipo de variable financiera')}<select id="fv_type"><option>Precio o tarifa</option><option>Coste unitario</option><option>Ingreso</option><option>Provisión</option><option>Financiación</option><option>Valoración</option></select></div>
+ <div>${label('scenario','Driver de precio')}<select id="fv_driver"><option value="ipc">Inflación general</option><option value="energy">Energía</option><option value="carbon">Carbono</option><option value="material">Materiales</option><option value="labor">Laboral</option><option value="rev">Ingresos</option><option value="finance">Financiación</option></select></div>
+ <div style="align-self:end"><button class="btn" onclick="addFinVar()">+ Añadir</button></div>
+</div><div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>ID</th><th>Variable</th><th>Línea financiera</th><th>Tipo de variable financiera</th><th>Driver</th><th></th></tr></thead><tbody>${Object.entries(FIN_VARS).map(([k,f])=>`<tr><td><b>${k}</b></td><td><input value="${esc(f.n)}" onchange="FIN_VARS['${k}'].n=this.value"></td><td><input value="${esc(f.line)}" onchange="FIN_VARS['${k}'].line=this.value"></td><td>${esc(f.type)}</td><td>${driverName(f.priceDriver)}</td><td class="right">${f.custom?`<button class="btn sm danger" onclick="removeFinVar('${k}')">✕</button>`:'<span class="muted">base</span>'}</td></tr>`).join('')}</tbody></table></div></div>
+<div class="card"><h3>Variables de sostenibilidad</h3><div class="note"><b>Cambio metodológico:</b> la vía de transmisión financiera ya no se fija aquí. Una misma variable ASG puede monetizarse de varias formas según la palanca: coste operativo, coste regulatorio, riesgo evitado, ingreso protegido, financiación, etc.</div><div class="grid5">
+ <div>${label('kpi','Nombre de la variable')}<input id="nv_name" placeholder="p.ej. Emisiones directas de GEI"></div>
+ <div>${label('quantity','Unidad')}<input id="nv_unit" placeholder="t, MWh, %, nº"></div>
+ <div>${label('transmission','Método sugerido')}<select id="nv_tr"><option>Cantidad por precio</option><option>Driver por coste</option><option>Frecuencia por coste</option><option>Ingreso incremental</option><option>Riesgo evitado</option><option>Coste de capital</option></select></div>
+ <div>${label('financialLine','Variable financiera orientativa')}<select id="nv_fin">${Object.entries(FIN_VARS).map(([k,f])=>`<option value="${k}">${k} · ${esc(f.n)}</option>`).join('')}</select><div class="hint">Solo orientativa; la palanca puede cambiarla.</div></div>
+ <div>${label('sector','Sectores')}<select id="nv_sec"><option value="${sec}">Solo ${SECTORS[sec]||sec}</option><option value="ALL">Todos los sectores</option></select></div>
+ <div style="align-self:end"><button class="btn" onclick="addAsgVar()">+ Añadir variable</button></div>
+</div><div class="tbl-wrap" style="margin-top:14px"><table><thead><tr><th>ID</th><th>Variable de sostenibilidad</th><th>Unidad</th><th>Tema</th><th>Relevancia</th><th>Variable financiera orientativa</th><th>Método sugerido</th><th></th></tr></thead><tbody>${Object.entries(KPIS).map(([k,v])=>{const rel=kpiRelevance(v,sec);return `<tr><td><b>${k}</b></td><td><input value="${esc(v.n)}" onchange="KPIS['${k}'].n=this.value"></td><td><input value="${esc(v.u)}" onchange="KPIS['${k}'].u=this.value" style="width:80px"></td><td><span class="badge b-grey">${esc(v.topic||'')}</span></td><td><span class="badge ${rel.cls}">${rel.label}</span></td><td><select onchange="KPIS['${k}'].fin=this.value">${Object.entries(FIN_VARS).map(([fk,f])=>`<option value="${fk}" ${v.fin===fk?'selected':''}>${fk} · ${esc(f.n)}</option>`).join('')}</select><div class="hint">Orientativa</div></td><td>${esc(v.tr||'—')}</td><td class="right">${v.custom?`<button class="btn sm danger" onclick="removeAsgVar('${k}')">✕</button>`:'<span class="muted">base</span>'}</td></tr>`;}).join('')}</tbody></table></div></div>`;}
+function driverName(d){return ({ipc:'Inflación general',energy:'Energía',carbon:'Carbono',material:'Materiales',labor:'Laboral',rev:'Ingresos',finance:'Financiación'})[d]||'Inflación general';}
+function addFinVar(){const g=id=>document.getElementById(id);const name=g('fv_name').value.trim();if(!name){alert('Indica el nombre.');return;}const id='F-U'+String(ufid++).padStart(2,'0');FIN_VARS[id]={n:name,line:g('fv_line').value||'Línea definida por usuario',type:g('fv_type').value,scen:true,priceDriver:g('fv_driver').value,custom:true};go('database');}
+function removeFinVar(id){if(Object.values(KPIS).some(k=>k.fin===id)||STATE.levers.some(l=>leverFinVar(l)===id)){alert('No se puede eliminar porque está vinculada a variables o palancas.');return;}delete FIN_VARS[id];go('database');}
+function addAsgVar(){const g=id=>document.getElementById(id);const name=g('nv_name').value.trim(),unit=g('nv_unit').value.trim()||'ud';if(!name){alert('Indica el nombre de la variable.');return;}const id='K-U'+String(uvid++).padStart(2,'0');const secSel=g('nv_sec').value;const secArr=secSel==='ALL'?['PH','CN','EN','AL','RT','MF','FN','TM','AU','AG','OT']:[secSel==='OT'?STATE.company.sector:secSel];KPIS[id]={n:name,u:unit,topic:'Definida por usuario',anchor:'Dato definido por usuario',sec:secArr,fin:g('nv_fin').value,vt:1,tr:g('nv_tr').value,custom:true};go('database');}
+function removeAsgVar(id){if(STATE.levers.some(l=>l.kpi===id)){alert('Hay una palanca que usa esta variable. Elimina o cambia la palanca antes.');return;}delete KPIS[id];delete STATE.kpidata[id];go('database');}
+/* ============================ 4 PALANCAS ============================ */
+function renderLevers(c){const sec=STATE.company.sector;const avail=kpisForSector(sec);c.innerHTML=`<h2 class="section-title">4 · Palancas</h2><p class="section-lead">Declara las iniciativas. Aquí se decide la vía de transmisión financiera: una misma variable ASG puede generar ahorro, ingreso, riesgo evitado o mejora de financiación según la palanca.</p>
+<div class="card"><h3>Nueva palanca</h3><div class="grid4">
+ <div>${label('leverName','Nombre de la palanca')}<input id="l_name" placeholder="p.ej. Reducción de emisiones sujetas a carbon tax"></div>
+ <div>${label('kpi','Variable de sostenibilidad vinculada')}<select id="l_kpi" onchange="syncNewLeverDefaults()">${avail.map(([k,v])=>`<option value="${k}">${k} · ${esc(v.n)}</option>`).join('')}</select></div>
+ <div>${label('transmission','Vía de transmisión financiera')}<select id="l_trans" onchange="syncNewLeverDefaults(false)">${transmissionOptions('')}</select></div>
+ <div>${label('financialLine','Partida financiera afectada')}<select id="l_finvar" onchange="kpiPreview()">${Object.entries(FIN_VARS).map(([k,f])=>`<option value="${k}">${k} · ${esc(f.n)}</option>`).join('')}</select></div>
+ <div>${label('perimeter','Perímetro')}<select id="l_perim">${STATE.perimeters.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>
+ <div>${label('active','Estado inicial')}<select id="l_active"><option value="true">Activa</option><option value="false">Inactiva</option></select></div>
+</div><div class="card" style="margin:14px 0 0;background:var(--surf-2)"><label class="fld">Lectura financiera de la palanca</label><div id="l_prev" style="font-size:13px"></div></div><div class="row-actions"><button class="btn primary" onclick="addLever()">+ Añadir palanca</button></div></div>
+<div class="card"><h3>Cartera de palancas (${STATE.levers.length})</h3><div id="lev_list"></div></div>`;syncNewLeverDefaults();renderLeverList();}
+function syncNewLeverDefaults(resetTrans=true){const k=document.getElementById('l_kpi'),tr=document.getElementById('l_trans'),fv=document.getElementById('l_finvar');if(!k||!k.value)return;if(resetTrans&&tr)tr.value=legacyTransmissionFromKpi(k.value);if(fv)fv.value=suggestedFinVar(k.value,tr?.value||legacyTransmissionFromKpi(k.value));kpiPreview();}
+function kpiPreview(){const k=document.getElementById('l_kpi'),tr=document.getElementById('l_trans'),fv=document.getElementById('l_finvar'),box=document.getElementById('l_prev');if(!k||!k.value||!box)return;const v=KPIS[k.value],t=TRANSMISSIONS[tr?.value||legacyTransmissionFromKpi(k.value)]||TRANSMISSIONS.opex_reduction,f=FIN_VARS[fv?.value||suggestedFinVar(k.value,tr?.value)]||{};box.innerHTML=`<span class="kpi-tag">${esc(v.n)} · ${esc(v.u)}</span> &nbsp;→&nbsp; <b>${esc(f.n||'')}</b> <span class="muted">(${esc(f.line||'')})</span> &nbsp;·&nbsp; <span class="vt ${t.c}">${esc(t.short||t.l)}</span><div class="hint" style="margin-top:5px"><b>Plantilla:</b> ${esc(t.formula)}. ${esc(t.desc)}</div>`;}
+function addLever(){const g=id=>document.getElementById(id);const kpi=g('l_kpi').value;if(!g('l_name').value.trim()){alert('Indica el nombre de la palanca.');return;}const transmission=g('l_trans').value||legacyTransmissionFromKpi(kpi),finVar=g('l_finvar').value||suggestedFinVar(kpi,transmission),f=FIN_VARS[finVar]||FIN_VARS[KPIS[kpi].fin],pre=f.baseLine?(STATE.fin[f.baseLine]?STATE.fin[f.baseLine][2]:0):0,method=suggestedCalcMethod(kpi,transmission);STATE.levers.push({id:lid++,name:g('l_name').value.trim(),kpi,transmission,finVar,perimeter:g('l_perim').value,active:g('l_active').value==='true',calcMethod:method,exposure:pre||0,quantity:0,unitPrice:0,unitLabel:KPIS[kpi].u,d:{low:0,base:0,high:0},uncertainty:'Media',advanced:false,contributionMargin:35,capex:0,setupOpex:0,recurringOpex:0,subsidy:0,useCapex:false,useSetup:false,useRecurring:false,useSubsidy:false,usefulLife:8,residualPct:0,useResidual:false,start:1,ramp:3,terminal:true,financing:'cash',debtPct:0,debtRate:STATE.fin.costDebt,financingTerm:5,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'',confidence:'Media'});if(!STATE.kpidata[kpi])STATE.kpidata[kpi]=[0,0,0];go('levers');}
+function renderLeverList(){const el=document.getElementById('lev_list');if(!el)return;if(!STATE.levers.length){el.innerHTML='<p class="muted">Aún no hay palancas. Añade la primera arriba.</p>';return;}el.innerHTML=STATE.levers.map(l=>{normalizeLever(l);const v=KPIS[l.kpi],f=FIN_VARS[leverFinVar(l)]||{},p=STATE.perimeters.find(x=>x.id===l.perimeter);return `<div class="lever-card ${l.active?'':'inactive'}"><div class="lever-head"><div><div class="lever-name">${esc(l.name)}</div><div class="hint">${esc(p?.name||'Toda la compañía')} · ${l.kpi} ${esc(v.n)} → ${esc(f.n||'')}</div></div><div style="display:flex;gap:10px;align-items:center">${transmissionBadge(l)}<label class="toggle"><input type="checkbox" ${l.active?'checked':''} onchange="toggleLever(${l.id})"><span></span></label><button class="btn sm" onclick="editLeverFromList(${l.id})">Editar</button><button class="btn sm danger" onclick="delLever(${l.id})">✕</button></div></div><div class="hint">Base económica: ${fmt(l.exposure||economicBase(l))} · Mejora base: ${fmtp(l.d.base||0)} · Inversión: ${fmt(l.capex||0)} · Fuente: ${esc(l.source||'pendiente')}</div></div>`}).join('');}
+function toggleLever(id){const l=STATE.levers.find(x=>x.id===id);l.active=!l.active;render();}
+function editLeverFromList(id){go('leverdata');setTimeout(()=>{const el=document.getElementById('lev_'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},50);}
+function delLever(id){STATE.levers=STATE.levers.filter(x=>x.id!==id);Object.keys(STATE.overlaps).forEach(k=>{if(k.includes(id+'_')||k.includes('_'+id))delete STATE.overlaps[k];});go('levers');}
+/* ============================ 5 DATOS ASG ============================ */
+function renderAsgData(c){const by=STATE.company.baseYear,yrs=[by-2,by-1,by],used=[...new Set(STATE.levers.map(l=>l.kpi))];c.innerHTML=`<h2 class="section-title">5 · Datos ASG observados</h2><p class="section-lead">Histórico real de las variables de sostenibilidad usadas por las palancas. Es el punto de partida operativo, separado de los supuestos de mejora.</p>${formatNote('Introduce cada KPI en la <b>unidad indicada en la columna Unidad</b>. No conviertas a euros en esta pestaña: la conversión económica se hace en Supuestos de palancas.')}`;if(!used.length){c.innerHTML+='<div class="note">Aún no has declarado palancas.</div>';return;}let html='<div class="card"><div class="tbl-wrap"><table><thead><tr><th>Variable</th><th>Unidad</th><th>Tema</th><th class="right">'+yrs[0]+'</th><th class="right">'+yrs[1]+'</th><th class="right">'+yrs[2]+' real</th><th class="right">Intensidad sobre ingresos</th><th>Fuente</th></tr></thead><tbody>';used.forEach(k=>{const v=KPIS[k];if(!STATE.kpidata[k])STATE.kpidata[k]=[0,0,0];const r=STATE.fin.revenue[2]||STATE.company.revenue||0,kd=STATE.kpidata[k],intens=r&&kd[2]?(kd[2]/r).toFixed(2):'—';html+=`<tr><td><b>${k}</b> ${esc(v.n)}</td><td>${esc(v.u)}</td><td><span class="badge b-grey">${esc(v.topic||'')}</span></td>${[0,1,2].map(i=>`<td><input type="number" value="${kd[i]||''}" style="width:105px" onchange="setKpi('${k}',${i},this.value)"></td>`).join('')}<td class="right" id="int_${k}">${intens}</td><td><input placeholder="dato real, estimación, benchmark"></td></tr>`;});html+='</tbody></table></div></div>';c.innerHTML+=html;}
+function setKpi(k,i,v){STATE.kpidata[k][i]=num(v);const r=STATE.fin.revenue[2]||STATE.company.revenue||0;const el=document.getElementById('int_'+k);if(el)el.textContent=r&&STATE.kpidata[k][2]?(STATE.kpidata[k][2]/r).toFixed(2):'—';}
+/* ============================ 6 SUPUESTOS PALANCAS ============================ */
+function isPhysicalUnit(u){return !/^(%|n[ºo]|índice|indice|score|días|dias|pp|ratio)/i.test((u||'').trim());}
+function vtIntro(vt){return {
+  1:'Palanca de <b>ahorro de coste</b>: reduce un gasto recurrente o evita un coste fiscal/regulatorio.',
+  2:'Palanca de <b>ingreso</b>: genera o protege ventas. Solo el margen llega al beneficio.',
+  3:'Palanca de <b>riesgo evitado</b>: reduce probabilidad, severidad o deterioro esperado.',
+  4:'Palanca de <b>capital y valoración</b>: mejora financiación, coste de capital o valoración.'
+}[vt];}
+function transmissionIntro(l){const t=getTransmission(l);return `<b>${esc(t.l)}</b>: ${esc(t.desc)}<br><span class="muted">Fórmula orientativa: ${esc(t.formula)}</span>`;}
+function renderLeverData(c){
+ c.innerHTML=`<h2 class="section-title">6 · Supuestos de palancas</h2><p class="section-lead">Para cada palanca rellena lo esencial en lenguaje sencillo. Solo verás los campos que aplican a su tipo. El detalle financiero del final ya viene con valores razonables: tócalo solo si lo necesitas.</p>${formatNote('Bases económicas, CapEx, Opex, subvenciones y costes de evento se introducen en <b>€M</b>. Costes por evento unitario —por ejemplo, coste por reemplazo— se introducen en <b>€ por evento</b>. Mejoras, probabilidades, severidad, seguro y margen se introducen en <b>%</b>.')}`;
+ if(!STATE.levers.length){c.innerHTML+='<div class="note">Aún no has declarado palancas. Vuelve al paso 4 para crearlas.</div>';return;}
+ c.innerHTML+=`<div class="flexbar" style="margin-bottom:14px"><button class="btn sm" onclick="setAllLeverPanels(false)">Expandir todas</button><button class="btn sm" onclick="setAllLeverPanels(true)">Contraer todas</button></div>`;
+ STATE.levers.forEach(l=>{normalizeLever(l);
+  const v=KPIS[l.kpi],finId=leverFinVar(l),f=FIN_VARS[finId]||FIN_VARS[v.fin]||{},t=getTransmission(l),vt=getLeverVt(l),base=economicBase(l),summary=leverInputSummary(l);
+  const physical=isPhysicalUnit(v.u);
+  const isCollapsed=!!(RESULTS_VIEW.leverCollapsed&&RESULTS_VIEW.leverCollapsed[l.id]);
+
+  // --- Bloque base/beneficio según tipo ---
+  let valueBlock='';
+  if(vt===3){
+   valueBlock=`<div class="step-block"><h4>2. ¿Qué problema evitas y cuánto cuesta?</h4>
+     <div class="grid4">
+       <div>${label('eventCost','¿Cuánto costaría si el problema ocurre? (€M)')}<input type="number" value="${l.risk.eventCost||''}" onchange="setRisk(${l.id},'eventCost',this.value)"><div class="hint">Multa, recall, litigio, paralización… coste total del evento.</div></div>
+       <div>${label('probabilityBefore','¿Cada cuánto ocurre hoy? (% al año)')}<input type="number" value="${l.risk.probBefore}" onchange="setRisk(${l.id},'probBefore',this.value)"><div class="hint">Probabilidad anual sin la medida. Ej.: 20 = una vez cada 5 años.</div></div>
+       <div>${label('probabilityAfter','¿Y con la medida implantada? (% al año)')}<input type="number" value="${l.risk.probAfter}" onchange="setRisk(${l.id},'probAfter',this.value)"><div class="hint">Probabilidad anual una vez aplicada la palanca.</div></div>
+       <div>${label('financing','¿Qué parte cubre el seguro? (%)')}<input type="number" value="${l.risk.coveredByInsurance||0}" onchange="setRisk(${l.id},'coveredByInsurance',this.value)"><div class="hint">0 si no hay seguro. Lo cubierto no cuenta como ahorro.</div></div>
+     </div></div>`;
+  } else if(vt===4){
+   valueBlock=`<div class="step-block"><h4>2. ¿Cuánto mejora tu coste de capital?</h4>
+     <div class="grid4">
+       <div>${label('exposure','Base de financiación afectada (€M)')}<input type="number" value="${l.exposure||''}" onchange="setLev(${l.id},'exposure',this.value)"><div class="hint">Deuda o capital sobre el que mejora el coste.</div></div>
+       <div>${label('improvement','Mejora esperada (%)')}<input type="number" value="${l.d.base||''}" onchange="setBaseImprovement(${l.id},this.value)"><div class="hint">Reducción relativa del coste de capital atribuible a la palanca.</div></div>
+       <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select></div>
+     </div>
+     <div class="note">El efecto en valoración se reporta por separado del flujo de caja operativo (canal de capital).</div></div>`;
+  } else {
+   // coste (1) o ingreso (2)
+   const method=leverCalcMethod(l);
+   const baseLabel=vt===2?'¿Cuánto ingreso adicional o protegido genera al año? (€M)':'¿Cuánto gasta hoy la empresa en esto? (€M)';
+   const baseHint=vt===2?'Ingreso anual que la palanca crea o protege.':'Gasto anual actual sobre el que actúas (energía, materiales, personal…).';
+   // Selector de plantilla de cálculo (siempre visible, sugerido por la variable ASG)
+   const chooser=`<div>${label('calcMethod','¿Cómo se calcula el beneficio de esta palanca?')}</div><div class="choice-row" style="margin-bottom:10px">
+      <div class="choice ${method==='economic'?'on':''}" onclick="setCalcMethod(${l.id},'economic')"><b>Importe directo</b><span>Reduzco un % de un gasto o ingreso conocido (ej.: energía).</span></div>
+      <div class="choice ${method==='physical'?'on':''}" onclick="setCalcMethod(${l.id},'physical')"><b>Cantidad × precio</b><span>Base física × precio unitario (ej.: ${esc(v.u)} × €/${esc(v.u)}).</span></div>
+      <div class="choice ${method==='frequency'?'on':''}" onclick="setCalcMethod(${l.id},'frequency')"><b>Frecuencia × coste evitado</b><span>Reduzco una tasa de eventos (ej.: rotación, accidentes).</span></div>
+     </div>`;
+   let baseInput,improvementRow;
+   if(method==='frequency'){
+     const annual=economicBase(l),imp=freqImprovement(l),saved=annual*imp/100;
+     baseInput=`<div class="grid4">
+        <div>${label('quantity','Volumen base')}<input type="number" value="${l.freqVolume||''}" onchange="setFreq(${l.id},'freqVolume',this.value)"><div class="hint">Ej.: nº de empleados, nº de unidades expuestas.</div></div>
+        <div>${label('improvement','Tasa actual (%)')}<input type="number" step="0.1" value="${l.freqRateBefore||''}" onchange="setFreq(${l.id},'freqRateBefore',this.value)"><div class="hint">Ej.: rotación del 12,5%.</div></div>
+        <div>${label('improvement','Tasa objetivo con la medida (%)')}<input type="number" step="0.1" value="${l.freqRateAfter||''}" onchange="setFreq(${l.id},'freqRateAfter',this.value)"><div class="hint">Ej.: bajar al 10%.</div></div>
+        <div>${label('eventCost','Coste por evento (€, NO €M)')}<input type="number" value="${l.freqUnitCost||''}" onchange="setFreq(${l.id},'freqUnitCost',this.value)"><div class="hint" style="color:var(--red);font-weight:600">⚠ Introducir en euros, no en €M. Ej.: 25000 para un reemplazo de €25k.</div>${num(l.freqUnitCost,0)>10000000?'<div class="warn">El valor parece muy alto. ¿Quizás debería estar en €M? Revisa que no es un importe en millones introducido aquí.</div>':''}</div>
+       </div>
+       <div class="calc-summary">Eventos evitados al año: <b>${(num(l.freqVolume,0)*(num(l.freqRateBefore,0)-num(l.freqRateAfter,0))/100).toLocaleString('es-ES',{maximumFractionDigits:0})}</b> · coste actual del driver: <b>${fmt(annual)}</b> · ahorro estabilizado ≈ <b>${fmt(saved)}</b>/año (antes de despliegue y escenarios).</div>`;
+     // En frecuencia, la "mejora" se deriva de las tasas: no se pide el % a mano, solo la confianza y el rango se autocalcula.
+     improvementRow=`<div class="grid4" style="margin-top:10px">
+        <div>${label('improvement','Mejora implícita (%)')}<input type="number" value="${freqImprovement(l).toFixed(1)}" disabled style="opacity:.7"><div class="hint">= (tasa actual − objetivo) / tasa actual. Se calcula sola.</div></div>
+        <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select></div>
+        <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
+        <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
+       </div>`;
+   } else {
+     if(method==='physical'){
+       baseInput=`<div class="grid4"><div>${label('quantity','Cantidad física al año')}<input type="number" value="${l.quantity||''}" onchange="setLev(${l.id},'quantity',this.value)"><div class="hint">En ${esc(l.unitLabel||v.u)}.</div></div><div>${label('unitPrice','Precio por unidad (€)')}<input type="number" value="${l.unitPrice||''}" onchange="setLev(${l.id},'unitPrice',this.value)"></div><div>${label('quantity','Unidad')}<input value="${esc(l.unitLabel||v.u)}" onchange="setLev(${l.id},'unitLabel',this.value,true)"></div></div>`;
+     } else {
+       baseInput=`<div class="grid4"><div>${label('exposure',baseLabel)}<input type="number" value="${l.exposure||''}" onchange="setLev(${l.id},'exposure',this.value)"><div class="hint">${baseHint}</div></div></div>`;
+     }
+     const improveLabel=vt===2?'¿Qué % esperas capturar o proteger?':'¿Qué % esperas reducir?';
+     improvementRow=`<div class="grid4" style="margin-top:10px">
+        <div>${label('improvement',improveLabel)}<input type="number" value="${l.d.base||''}" onchange="setBaseImprovement(${l.id},this.value)"><div class="hint">Mejora sobre la base. Ej.: 15 = reduces/capturas un 15%.</div></div>
+        <div>${label('uncertainty','Nivel de confianza')}<select onchange="setUncertainty(${l.id},this.value)">${['Baja','Media','Alta'].map(x=>`<option ${l.uncertainty===x?'selected':''}>${x}</option>`).join('')}</select><div class="hint">Genera el rango bajo/alto automáticamente.</div></div>
+        <div>${label('improvement','Caso prudente (%)')}<input type="number" value="${l.d.low||''}" onchange="setLevD(${l.id},'low',this.value)"></div>
+        <div>${label('improvement','Caso optimista (%)')}<input type="number" value="${l.d.high||''}" onchange="setLevD(${l.id},'high',this.value)"></div>
+       </div>`;
+   }
+   const marginField=vt===2?`<div class="grid4" style="margin-top:10px"><div>${label('impactType','¿Qué % de ese ingreso es margen?')}<input type="number" value="${l.contributionMargin||35}" onchange="setLev(${l.id},'contributionMargin',this.value)"><div class="hint">Solo el margen llega al beneficio. Ej.: 35%.</div></div></div>`:'';
+   valueBlock=`<div class="step-block"><h4>2. ¿Sobre qué actúa y cuánto mejora?</h4>
+     ${chooser}
+     ${baseInput}
+     ${improvementRow}
+     ${marginField}
+     </div>`;
+  }
+
+  // --- Detalle financiero (visible pero secundario) ---
+  const intensityField=vt===1?`<div>${label('intensity','Tendencia del consumo vs crecimiento (pp/año)')}<input type="number" value="${l.intensityDelta||0}" onchange="setLev(${l.id},'intensityDelta',this.value)"><div class="hint">0 = crece igual que las ventas. −2 = el consumo crece 2 pp/año menos (mejora de eficiencia tendencial).</div></div>`:'';
+
+  c.innerHTML+=`<div class="wizard-card ${isCollapsed?'collapsed':''}" id="lev_${l.id}">
+   <div class="wizard-head"><div class="wizard-head-main">
+     <h3 style="border:0;margin:0;padding:0">${esc(l.name)} &nbsp;<span class="vt ${VT[vt].c}">${VT[vt].l}</span></h3>
+     <div class="hint">${l.kpi} · ${esc(v.n)} · ${esc(v.u)} → ${esc(f.n)} (${esc(f.line)})</div>
+     <div class="note" style="margin:8px 0 0">${transmissionIntro(l)}</div>
+     <div style="margin-top:7px"><span class="mini-kpi">Base: <b>${fmt(base)}</b></span><span class="mini-kpi">Mejora base: <b>${fmtp(l.d.base||0)}</b></span><span class="mini-kpi">Confianza: <b>${esc(l.uncertainty)}</b></span></div>
+   </div><div class="wizard-actions"><button class="collapse-btn" onclick="toggleLeverPanel(${l.id})" title="${isCollapsed?'Expandir':'Contraer'} palanca"><span class="collapse-icon">${isCollapsed?'▶':'▼'}</span><span class="collapse-label">${isCollapsed?'Expandir':'Contraer'}</span></button><label class="toggle" title="Incluir en el cálculo"><input type="checkbox" ${l.active?'checked':''} onchange="setLev(${l.id},'active',this.checked)"><span></span></label></div></div>
+   <div class="wizard-body">
+
+    <div class="step-block"><h4>1. Identificación, vía financiera y origen del dato</h4><div class="grid4">
+      <div>${label('perimeter','Perímetro / unidad de negocio')}<select onchange="setLev(${l.id},'perimeter',this.value,true)">${STATE.perimeters.map(p=>`<option value="${p.id}" ${l.perimeter===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}</select></div>
+      <div>${label('transmission','Vía de transmisión financiera')}<select onchange="setLeverTransmission(${l.id},this.value)">${transmissionOptions(getTransmissionKey(l))}</select></div>
+      <div>${label('financialLine','Partida financiera afectada')}<select onchange="setLeverFinVar(${l.id},this.value)">${Object.entries(FIN_VARS).map(([fk,ff])=>`<option value="${fk}" ${leverFinVar(l)===fk?'selected':''}>${fk} · ${esc(ff.n)}</option>`).join('')}</select></div>
+      <div>${label('source','¿De dónde sale el dato?')}<input value="${esc(l.source||'')}" onchange="setLev(${l.id},'source',this.value,true)" placeholder="dato interno, benchmark, estimación…"></div>
+      <div>${label('confidence','Calidad del dato')}<select onchange="setLev(${l.id},'confidence',this.value,true)">${['Alta','Media','Baja'].map(x=>`<option ${l.confidence===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    </div></div>
+
+    ${valueBlock}
+
+    <div class="step-block"><h4>3. ¿Cuándo empieza a notarse y cuánto cuesta implantarla?</h4><div class="grid4">
+      <div>${label('start','¿Cuándo empieza el efecto?')}<select onchange="setRampPreset(${l.id},this.value)"><option value="immediate" ${(l.start===1&&l.ramp===1)?'selected':''}>Desde el primer año, completo</option><option value="gradual" ${(l.start===1&&l.ramp===3)?'selected':''}>Desde el primer año, gradual</option><option value="deferred" ${(l.start===2&&l.ramp===3)?'selected':''}>Empieza más tarde</option><option value="custom" ${!((l.start===1&&l.ramp===1)||(l.start===1&&l.ramp===3)||(l.start===2&&l.ramp===3))?'selected':''}>Personalizado</option></select></div>
+      <div>${label('start','Año de inicio')}<input type="number" min="1" value="${l.start}" onchange="setLev(${l.id},'start',this.value)"></div>
+      <div>${label('ramp','Años hasta pleno efecto')}<input type="number" min="1" value="${l.ramp}" onchange="setLev(${l.id},'ramp',this.value)"></div>
+      <div></div>
+      <div>${label('capex','¿Requiere inversión inicial?')}<select onchange="setLeverFlag(${l.id},'useCapex',this.value==='true')"><option value="false" ${!l.useCapex?'selected':''}>No</option><option value="true" ${l.useCapex?'selected':''}>Sí</option></select></div>
+      ${l.useCapex?`<div>${label('capex','Inversión inicial (€M)')}<input type="number" value="${l.capex||''}" onchange="setLev(${l.id},'capex',this.value)"></div>`:'<div></div>'}
+      <div>${label('recurringOpex','¿Tiene coste anual de mantenimiento?')}<select onchange="setLeverFlag(${l.id},'useRecurring',this.value==='true')"><option value="false" ${!l.useRecurring?'selected':''}>No</option><option value="true" ${l.useRecurring?'selected':''}>Sí</option></select></div>
+      ${l.useRecurring?`<div>${label('recurringOpex','Coste anual (€M)')}<input type="number" value="${l.recurringOpex||''}" onchange="setLev(${l.id},'recurringOpex',this.value)"></div>`:'<div></div>'}
+      <div>${label('setupOpex','¿Hay gasto inicial de puesta en marcha?')}<select onchange="setLeverFlag(${l.id},'useSetup',this.value==='true')"><option value="false" ${!l.useSetup?'selected':''}>No</option><option value="true" ${l.useSetup?'selected':''}>Sí</option></select></div>
+      ${l.useSetup?`<div>${label('setupOpex','Gasto inicial (€M)')}<input type="number" value="${l.setupOpex||''}" onchange="setLev(${l.id},'setupOpex',this.value)"></div>`:'<div></div>'}
+      <div>${label('financing','¿Recibe subvención o ayuda?')}<select onchange="setLeverFlag(${l.id},'useSubsidy',this.value==='true')"><option value="false" ${!l.useSubsidy?'selected':''}>No</option><option value="true" ${l.useSubsidy?'selected':''}>Sí</option></select></div>
+      ${l.useSubsidy?`<div>${label('financing','Subvención (€M)')}<input type="number" value="${l.subsidy||''}" onchange="setLev(${l.id},'subsidy',this.value)"></div>`:'<div></div>'}
+    </div></div>
+
+    <div class="calc-summary">${summary}</div>
+
+    <div class="step-block" style="background:var(--surf-2)"><h4>4. Detalle financiero <span class="muted" style="font-weight:400;font-size:12px">— opcional, ya tiene valores por defecto</span></h4><div class="grid4">
+      ${l.useCapex?`<div>${label('usefulLife','Vida útil de la inversión (años)')}<input type="number" value="${l.usefulLife||8}" onchange="setLev(${l.id},'usefulLife',this.value)"></div>
+      <div>${label('residualAsset','¿El activo conserva valor al final?')}<select onchange="setLeverFlag(${l.id},'useResidual',this.value==='true')"><option value="false" ${!l.useResidual?'selected':''}>No</option><option value="true" ${l.useResidual?'selected':''}>Sí</option></select></div>
+      ${l.useResidual?`<div>${label('residualAsset','Valor residual (% de la inversión)')}<input type="number" value="${l.residualPct||''}" onchange="setLev(${l.id},'residualPct',this.value)"></div>`:'<div></div>'}`:'<div class="hint" style="grid-column:1/3;align-self:center">Sin inversión inicial: vida útil y valor residual no aplican.</div>'}
+      ${STATE.fin.terminalDefault?`<div>${label('terminalBenefit','¿El beneficio continúa tras el horizonte?')}<select onchange="setLev(${l.id},'terminal',this.value==='true')"><option value="true" ${l.terminal?'selected':''}>Sí</option><option value="false" ${!l.terminal?'selected':''}>No</option></select></div>`:`<div style="grid-column:span 1"><div class="hint" style="padding:8px;background:var(--surf-2);border:1px solid var(--border);border-radius:var(--r-2)">Valor terminal desactivado globalmente. <a href="#" style="color:var(--cobalt)" onclick="event.preventDefault();go('financials')">Actívalo en Base financiera →</a></div></div>`}
+      ${intensityField}
+      <div>${label('advanced','Mostrar financiación con deuda')}<select onchange="setLev(${l.id},'advanced',this.value==='true')"><option value="false" ${!l.advanced?'selected':''}>No</option><option value="true" ${l.advanced?'selected':''}>Sí</option></select></div>
+    </div>
+    ${l.advanced?`<div class="advanced-box"><div class="grid4"><div>${label('financing','Tipo de financiación')}<select onchange="setLev(${l.id},'financing',this.value,true)">${Object.entries(FINANCING).map(([k,vv])=>`<option value="${k}" ${l.financing===k?'selected':''}>${vv}</option>`).join('')}</select></div><div>${label('debtPct','% financiado con deuda')}<input type="number" value="${l.debtPct||''}" onchange="setLev(${l.id},'debtPct',this.value)"></div><div>${label('debtRate','Coste de la deuda (%)')}<input type="number" value="${l.debtRate||STATE.fin.costDebt}" onchange="setLev(${l.id},'debtRate',this.value)"></div><div>${label('financing','Plazo (años)')}<input type="number" value="${l.financingTerm||5}" onchange="setLev(${l.id},'financingTerm',this.value)"></div></div></div>`:''}
+    ${(vt===1||vt===2)?'<div class="note" style="margin-top:10px"><b>Valor residual</b> = lo que vale el activo al final. <b>Valor terminal</b> = los beneficios que siguen generándose tras el último año. No son lo mismo.</div>':''}
+    </div>
+
+    ${vt===3?`<div class="step-block" style="background:var(--surf-2)"><h4>5. Rango de gravedad del evento <span class="muted" style="font-weight:400;font-size:12px">— opcional</span></h4><div class="grid4"><div>${label('severity','Gravedad caso prudente (%)')}<input type="number" value="${l.risk.severityLow}" onchange="setRisk(${l.id},'severityLow',this.value)"><div class="hint">% del coste del evento en el peor/mejor caso.</div></div><div>${label('severity','Gravedad caso base (%)')}<input type="number" value="${l.risk.severityBase}" onchange="setRisk(${l.id},'severityBase',this.value)"></div><div>${label('severity','Gravedad caso alto (%)')}<input type="number" value="${l.risk.severityHigh}" onchange="setRisk(${l.id},'severityHigh',this.value)"></div></div></div>`:''}
+   </div>
+  </div>`;});}
+function ensureLeverCollapseState(){if(!RESULTS_VIEW.leverCollapsed)RESULTS_VIEW.leverCollapsed={};}
+function toggleLeverPanel(id){ensureLeverCollapseState();RESULTS_VIEW.leverCollapsed[id]=!RESULTS_VIEW.leverCollapsed[id];go('leverdata');}
+function setAllLeverPanels(collapsed){ensureLeverCollapseState();STATE.levers.forEach(l=>{RESULTS_VIEW.leverCollapsed[l.id]=!!collapsed;});go('leverdata');}
+function leverInputSummary(l){normalizeLever(l);const v=KPIS[l.kpi],vt=getLeverVt(l),base=economicBase(l),d=num(l.d.base,0),annual=base*d/100;if(vt===3){const before=(l.risk.probBefore||0)/100*(l.risk.eventCost||0)*(1-(l.risk.coveredByInsurance||0)/100);const after=(l.risk.probAfter||0)/100*(l.risk.eventCost||0)*(1-(l.risk.coveredByInsurance||0)/100);return `Pérdida esperada hoy: <b>${fmt(before)}</b>/año. Con la medida: <b>${fmt(after)}</b>/año. Ahorro de riesgo estabilizado: <b>${fmt(Math.max(0,before-after))}</b>/año (antes de escenarios y despliegue).`;}const m=leverCalcMethod(l);if(m==='frequency'){const events=num(l.freqVolume,0)*(num(l.freqRateBefore,0)-num(l.freqRateAfter,0))/100;return `<b>${num(l.freqVolume,0).toLocaleString('es-ES')}</b> × (${num(l.freqRateBefore,0)}% − ${num(l.freqRateAfter,0)}%) × <b>${num(l.freqUnitCost,0).toLocaleString('es-ES')}</b> € = <b>${events.toLocaleString('es-ES',{maximumFractionDigits:0})}</b> eventos evitados → ahorro estabilizado ≈ <b>${fmt(annual)}</b>/año (antes de escenarios y despliegue).`;}if(m==='physical')return `Base = <b>${(l.quantity||0).toLocaleString('es-ES')}</b> ${esc(l.unitLabel||v.u)} × <b>${(l.unitPrice||0).toLocaleString('es-ES')}</b> € = <b>${fmt(base)}</b>. Con una mejora del <b>${fmtp(d)}</b>, beneficio bruto anual estabilizado ≈ <b>${fmt(vt===2?annual*((l.contributionMargin||35)/100):annual)}</b>.`;return `Base usada: <b>${fmt(base)}</b>. Con una mejora del <b>${fmtp(d)}</b>, beneficio bruto anual estabilizado ≈ <b>${fmt(vt===2?annual*((l.contributionMargin||35)/100):annual)}</b> (antes de escenarios y despliegue).`;}
+function setLeverTransmission(id,value){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.transmission=value;l.finVar=suggestedFinVar(l.kpi,value);l.calcMethod=suggestedCalcMethod(l.kpi,value);if(l.calcMethod==='frequency')syncFreqLever(l);go('leverdata');}
+function setLeverFinVar(id,value){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.finVar=value;go('leverdata');}
+function setCalcMethod(id,method){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.calcMethod=method;if(method==='frequency')syncFreqLever(l);go('leverdata');}
+function setFreq(id,key,v){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l[key]=num(v);syncFreqLever(l);go('leverdata');}
+function setLeverFlag(id,key,val){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l[key]=!!val;go('leverdata');}
+function setRampPreset(id,preset){const l=STATE.levers.find(x=>x.id===id);if(!l)return;if(preset==='immediate'){l.start=1;l.ramp=1;}else if(preset==='gradual'){l.start=1;l.ramp=3;}else if(preset==='deferred'){l.start=2;l.ramp=3;}go('leverdata');}
+function setBaseImprovement(id,v){const l=STATE.levers.find(x=>x.id===id);if(!l)return;if(!l.d)l.d={low:0,base:0,high:0};l.d.base=num(v);applyUncertainty(l);}
+function setUncertainty(id,v){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l.uncertainty=v;applyUncertainty(l);go('leverdata');}
+function setLev(id,key,v,isText=false){const l=STATE.levers.find(x=>x.id===id);if(!l)return;l[key]=isText?v:(typeof v==='boolean'?v:num(v,(key==='start'||key==='ramp'?1:0)));}
+function setRisk(id,key,v){const l=STATE.levers.find(x=>x.id===id);if(!l)return;normalizeLever(l);l.risk[key]=num(v);}
+function setLevD(id,band,v){const l=STATE.levers.find(x=>x.id===id);if(!l)return;if(!l.d)l.d={low:0,base:0,high:0};l.d[band]=num(v);if(band==='base')applyUncertainty(l);}
+/* ============================ 7 ESCENARIOS ============================ */
+const SCEN_PRESETS={
+ Global:{Optimista:{revGrowth:[3.8,3.6,3.5,3.4,3.3],ipc:[2.4,2.2,2.1,2,2],energy:[1,1,1,1,1],material:[1,1.2,1.5,1.8,2],labor:[2.5,2.5,2.4,2.4,2.4],carbon:[70,75,80,85,90]},Base:{revGrowth:[3.1,3.2,3.2,3.1,3],ipc:[3.7,3.2,2.8,2.5,2.3],energy:[6,4,3,3,2.5],material:[3,3,2.5,2.5,2],labor:[4,3.5,3,3,2.8],carbon:[90,100,110,120,130]},Estrés:{revGrowth:[1.2,1.5,2,2.2,2.4],ipc:[6,5.2,4.5,3.8,3.2],energy:[12,8,6,5,4],material:[8,7,5,4,3],labor:[7,6,5,4.5,4],carbon:[120,150,180,210,250]}},
+ 'Unión Europea':{Optimista:{revGrowth:[1.8,2,2,1.9,1.8],ipc:[2.1,2,2,2,2],energy:[0,1,1,1,1],material:[1,1,1.5,1.5,1.8],labor:[2.7,2.6,2.5,2.5,2.4],carbon:[75,80,85,90,95]},Base:{revGrowth:[1.1,1.4,1.5,1.5,1.5],ipc:[3.1,2.4,2.2,2,2],energy:[5,3,2.5,2,2],material:[2.5,2.5,2,2,2],labor:[4,3.5,3.2,3,2.8],carbon:[90,105,120,135,150]},Estrés:{revGrowth:[0,0.5,1,1.2,1.3],ipc:[5.5,4.8,4,3.5,3],energy:[14,10,7,5,4],material:[7,6,5,4,3.5],labor:[6.5,6,5,4.5,4],carbon:[130,165,200,235,270]}},
+ 'Estados Unidos':{Optimista:{revGrowth:[2.8,2.6,2.4,2.2,2.1],ipc:[2.4,2.2,2.1,2,2],energy:[1,1,1,1,1],material:[1.5,1.8,2,2,2],labor:[3,2.8,2.7,2.6,2.5],carbon:[55,60,65,70,75]},Base:{revGrowth:[2.3,2.1,2,1.9,1.8],ipc:[3.2,2.7,2.4,2.2,2.1],energy:[5,4,3,3,2.5],material:[3,2.8,2.5,2.4,2.3],labor:[4,3.6,3.3,3,2.8],carbon:[70,80,90,100,110]},Estrés:{revGrowth:[0.8,1,1.4,1.6,1.7],ipc:[5.2,4.4,3.8,3.2,2.8],energy:[11,8,6,5,4],material:[7,6,5,4,3],labor:[6.5,5.5,5,4.3,4],carbon:[95,120,150,180,210]}}
+};
+function renderScenarios(c){const s=STATE.scenario,yrs=projYears();c.innerHTML=`<h2 class="section-title">7 · Escenarios</h2><p class="section-lead">Separa el escenario macroeconómico, sectorial, de ejecución y financiero. Así puedes distinguir si el valor depende del mercado, del precio, de la implantación o del coste de capital.</p>
+${formatNote('Los crecimientos anuales se introducen en <b>% anual</b>; los ajustes sectoriales en <b>puntos porcentuales (pp)</b>; el precio de carbono en <b>€/tCO₂e</b>.')}
+<div class="card"><h3>Escenario macroeconómico</h3><div class="flexbar"><span class="muted strong">Geografía:</span><select style="max-width:220px" onchange="STATE.scenario.geography=this.value;applyMacroPreset(STATE.scenario.macroPreset)">${['Global','Unión Europea','Estados Unidos'].map(g=>`<option ${s.geography===g?'selected':''}>${g}</option>`).join('')}</select><span class="muted strong">Preset:</span><div class="seg">${['Optimista','Base','Estrés'].map(x=>`<button class="${s.macroPreset===x?'on':''}" onclick="applyMacroPreset('${x}')">${x}</button>`).join('')}</div></div>${scenarioTable('macro',s.macro,yrs,['revGrowth','ipc','energy','material','labor','carbon'])}</div>
+<div class="card"><h3>Escenario sectorial</h3><div class="flexbar"><div class="seg">${['Optimista','Base','Estrés'].map(x=>`<button class="${s.sectorPreset===x?'on':''}" onclick="applySectorPreset('${x}')">${x}</button>`).join('')}</div></div>${scenarioTable('sector',s.sector,yrs,['demandAdj','priceAdj','marginAdj'])}<div class="grid3" style="margin-top:14px"><div>${label('scenario','Presión competitiva')}<input type="number" value="${s.sector.competitivePressure}" onchange="STATE.scenario.sector.competitivePressure=num(this.value)"><div class="hint">Reduce crecimiento o margen en escenarios adversos.</div></div></div></div>
+<div class="card"><h3>Escenario de ejecución</h3><div class="grid4"><div>${label('scenario','Probabilidad de éxito')}<input type="number" value="${s.execution.successRate}" onchange="STATE.scenario.execution.successRate=num(this.value)"></div><div>${label('scenario','Retraso de implantación en meses')}<input type="number" value="${s.execution.delayMonths}" onchange="STATE.scenario.execution.delayMonths=num(this.value)"></div><div>${label('scenario','Adopción por la organización')}<input type="number" value="${s.execution.adoption}" onchange="STATE.scenario.execution.adoption=num(this.value)"></div><div>${label('scenario','Sobrecoste de implantación')}<input type="number" value="${s.execution.costOverrun}" onchange="STATE.scenario.execution.costOverrun=num(this.value)"></div></div></div>
+<div class="card"><h3>Escenario financiero</h3><div class="grid4"><div>${label('wacc','Ajuste al coste del capital')}<input type="number" value="${s.finance.waccAdj}" onchange="STATE.scenario.finance.waccAdj=num(this.value)"></div><div>${label('financing','Ajuste al coste de deuda')}<input type="number" value="${s.finance.debtCostAdj}" onchange="STATE.scenario.finance.debtCostAdj=num(this.value)"></div><div>${label('multiple','Ajuste al múltiplo EBITDA')}<input type="number" value="${s.finance.multipleAdj}" onchange="STATE.scenario.finance.multipleAdj=num(this.value)"></div></div></div>
+<div class="card"><h3>Comparativa de escenarios</h3><div id="ch_scenarios" class="chart"></div><div id="ch_costidx" class="chart small"></div></div>`;drawScenarioCharts();}
+// units: 'rate' = tasa de variación % anual; 'level' = nivel absoluto (€/t); 'adj' = ajuste en puntos %
+const SCEN_META={
+ revGrowth:{name:'Crecimiento de ingresos',unit:'rate',u:'% anual'},
+ ipc:{name:'Inflación general',unit:'rate',u:'% anual'},
+ energy:{name:'Precio de energía',unit:'rate',u:'% anual'},
+ material:{name:'Precio de materiales',unit:'rate',u:'% anual'},
+ labor:{name:'Inflación laboral',unit:'rate',u:'% anual'},
+ carbon:{name:'Precio del carbono',unit:'level',u:'€/tCO₂e'},
+ demandAdj:{name:'Ajuste de demanda sectorial',unit:'adj',u:'pp'},
+ priceAdj:{name:'Ajuste de precio sectorial',unit:'adj',u:'pp'},
+ marginAdj:{name:'Ajuste de margen',unit:'adj',u:'pp'}
+};
+function scenarioTable(group,obj,yrs,keys){
+ const view=(RESULTS_VIEW.scenView&&RESULTS_VIEW.scenView[group])||'rate';
+ const toggle=`<div class="flexbar" style="margin-bottom:8px"><span class="muted strong">Vista:</span><div class="seg">
+   <button class="${view==='rate'?'on':''}" onclick="setScenView('${group}','rate')">Tasa anual</button>
+   <button class="${view==='cum'?'on':''}" onclick="setScenView('${group}','cum')">Acumulado / nivel</button></div>
+   <span class="hint">${view==='rate'?'Variación interanual de cada variable.':'Tasas → índice base 100 acumulado; niveles (carbono) → valor absoluto €/t.'}</span></div>`;
+ const head=`<tr><th>Variable</th><th>Unidad</th>${yrs.map(y=>`<th class="right">${y}</th>`).join('')}</tr>`;
+ const body=keys.map(k=>{
+   const m=SCEN_META[k]||{name:k,unit:'rate',u:'% anual'};
+   if(view==='cum'){
+     let cells;
+     if(m.unit==='level'){cells=yrs.map((y,i)=>`<td class="right strong">${arrVal(obj[k],i)} <span class="muted" style="font-weight:400">€/t</span></td>`).join('');}
+     else if(m.unit==='adj'){let acc=0;cells=yrs.map((y,i)=>{acc+=num(arrVal(obj[k],i));return `<td class="right">${acc>=0?'+':''}${acc.toFixed(1)} <span class="muted">pp</span></td>`;}).join('');}
+     else {let idx=100;cells=yrs.map((y,i)=>{idx*=1+num(arrVal(obj[k],i))/100;return `<td class="right strong">${idx.toFixed(1)}</td>`;}).join('');}
+     return `<tr><td><b>${m.name}</b></td><td class="muted">${m.unit==='rate'?'índice 100':m.u}</td>${cells}</tr>`;
+   }
+   return `<tr><td><b>${m.name}</b></td><td class="muted">${m.u}</td>${yrs.map((y,i)=>`<td><input type="number" value="${arrVal(obj[k],i)}" onchange="STATE.scenario.${group}.${k}[${i}]=num(this.value)" style="width:84px"></td>`).join('')}</tr>`;
+ }).join('');
+ return toggle+`<div class="tbl-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+function setScenView(group,v){if(!RESULTS_VIEW.scenView)RESULTS_VIEW.scenView={};RESULTS_VIEW.scenView[group]=v;go('scenarios');}
+function applyMacroPreset(name){const geo=STATE.scenario.geography||'Global';STATE.scenario.macroPreset=name;STATE.scenario.macro=JSON.parse(JSON.stringify((SCEN_PRESETS[geo]||SCEN_PRESETS.Global)[name]));go('scenarios');}
+function applySectorPreset(name){STATE.scenario.sectorPreset=name;const P={Optimista:{demandAdj:[1,1,1,1,1],priceAdj:[0.5,0.5,0.5,0.5,0.5],marginAdj:[0.3,0.3,0.3,0.3,0.3],competitivePressure:-1},Base:{demandAdj:[0,0,0,0,0],priceAdj:[0,0,0,0,0],marginAdj:[0,0,0,0,0],competitivePressure:0},Estrés:{demandAdj:[-2,-1.5,-1,-1,-1],priceAdj:[-1,-1,-0.5,-0.5,-0.5],marginAdj:[-1,-0.8,-0.5,-0.5,-0.5],competitivePressure:2}};STATE.scenario.sector=JSON.parse(JSON.stringify(P[name]));go('scenarios');}
+function drawScenarioCharts(){if(!document.getElementById('ch_scenarios'))return;const geo=STATE.scenario.geography,yrs=projYears();const presets=SCEN_PRESETS[geo]||SCEN_PRESETS.Global;Plotly.newPlot('ch_scenarios',Object.entries(presets).map(([name,p])=>({type:'scatter',mode:'lines+markers',name,x:yrs,y:p.revGrowth})),{margin:{l:50,r:20,t:10,b:35},font:{family:'Inter',size:12},yaxis:{title:'Crecimiento ingresos (%)',gridcolor:'rgba(12,35,60,.06)'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});Plotly.newPlot('ch_costidx',[{type:'scatter',mode:'lines+markers',name:'Energía',x:yrs,y:indexPath(STATE.scenario.macro.energy)},{type:'scatter',mode:'lines+markers',name:'Materiales',x:yrs,y:indexPath(STATE.scenario.macro.material)},{type:'scatter',mode:'lines+markers',name:'Laboral',x:yrs,y:indexPath(STATE.scenario.macro.labor)}],{margin:{l:50,r:20,t:10,b:35},font:{family:'Inter',size:12},yaxis:{title:'Índice 100 = año base',gridcolor:'rgba(12,35,60,.06)'},legend:{orientation:'h'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
+function indexPath(rates){let val=100;return rates.map(r=>{val*=1+num(r)/100;return +val.toFixed(1);});}
+/* ============================ 8 OVERLAPS ============================ */
+function renderOverlaps(c){c.innerHTML=`<h2 class="section-title">8 · Solapamientos entre palancas</h2><p class="section-lead">Define qué parte del beneficio puede estar duplicada entre dos palancas. Usa grupos de solapamiento para palancas que comparten la misma base financiera: el modelo aplica corrección de grupo además de la corrección por pares.</p>`;if(STATE.levers.length<2){c.innerHTML+='<div class="note">Necesitas al menos dos palancas para calcular solapamientos.</div>';return;}
+// --- Grupos de solapamiento ---
+const allGroups=[...new Set(STATE.levers.map(l=>l.overlapGroup||'').filter(Boolean))];
+let html=`<div class="card"><h3>Grupos de solapamiento <span class="muted" style="font-weight:400;font-size:12px">— opcional, para tres o más palancas sobre la misma base</span></h3>
+<div class="note">Asigna el mismo nombre de grupo a las palancas que comparten base financiera (p.ej. dos palancas sobre el mismo gasto energético). El modelo aplicará una reducción adicional del beneficio conjunto del grupo equivalente al mayor solapamiento por pares dentro del grupo.</div>
+<div class="tbl-wrap"><table><thead><tr><th>Palanca</th><th>Variable ASG → Financiera</th><th>Grupo de solapamiento</th></tr></thead><tbody>${STATE.levers.map(l=>{const v=KPIS[l.kpi],f=FIN_VARS[leverFinVar(l)]||{};return `<tr><td><b>${esc(l.name)}</b></td><td class="muted">${l.kpi} → ${esc(f.n||'')}</td><td><input value="${esc(l.overlapGroup||'')}" placeholder="p.ej. energia, rrhh, calidad" style="width:180px" onchange="STATE.levers.find(x=>x.id===${l.id}).overlapGroup=this.value.trim()"></td></tr>`;}).join('')}</tbody></table></div>
+${allGroups.length?`<div class="note" style="border-color:var(--green)"><b>Grupos activos:</b> ${allGroups.map(g=>{const members=STATE.levers.filter(l=>l.overlapGroup===g);return `<b>${esc(g)}</b> (${members.map(l=>esc(l.name)).join(', ')})`;}).join(' · ')}</div>`:''}
+</div>`;
+// --- Matriz por pares ---
+html+='<div class="card"><h3>Matriz de solapamiento por pares (%)</h3><div class="tbl-wrap"><table><thead><tr><th>Palanca</th>'+STATE.levers.map(l=>`<th style="max-width:120px;word-break:break-word;font-size:11px">${esc(l.name)}</th>`).join('')+'</tr></thead><tbody>';STATE.levers.forEach((a,i)=>{html+=`<tr><td><b>${esc(a.name)}</b><div class="hint">${a.overlapGroup?`Grupo: ${esc(a.overlapGroup)}`:''}</div></td>`;STATE.levers.forEach((b,j)=>{if(i>=j)html+='<td class="muted" style="background:var(--surf-2)">—</td>';else{const key=overlapKey(a.id,b.id);const sameGroup=a.overlapGroup&&a.overlapGroup===b.overlapGroup;html+=`<td style="${sameGroup?'background:#FFF8E8':''}"><input type="number" min="0" max="100" value="${STATE.overlaps[key]||0}" onchange="STATE.overlaps['${key}']=num(this.value)" style="width:65px" title="${sameGroup?'Mismo grupo: '+a.overlapGroup:''}">${sameGroup?`<div class="hint" style="color:var(--yellow)">grupo</div>`:''}</td>`;}});html+='</tr>';});html+='</tbody></table></div><div class="note"><b>Lectura:</b> 0% = independientes. 50% = la mitad del menor beneficio puede estar duplicado. Las celdas amarillas son pares del mismo grupo.</div><div class="note" style="border-color:#E6C200;background:#FFFBEA"><b>Nota:</b> el ajuste por pares puede no capturar el triple cómputo con tres o más palancas sobre la misma línea. Para ese caso, usa grupos: el modelo aplica una corrección adicional sobre el beneficio conjunto del grupo.</div></div>';c.innerHTML+=html;}
+function overlapKey(a,b){return [a,b].sort((x,y)=>x-y).join('_');}
+// Reducción adicional por grupos de solapamiento (sobre el exceso no capturado por pares)
+function groupOverlapReduction(active,h){let totalReduction=Array(h).fill(0);const groups=[...new Set(active.map(p=>p.l.overlapGroup||'').filter(Boolean))];groups.forEach(g=>{const members=active.filter(p=>p.l.overlapGroup===g);if(members.length<3)return; // con 2 lo cubre la matriz por pares
+ // Reducción adicional = 10% del beneficio del miembro menor del grupo (estimación conservadora)
+ for(let y=0;y<h;y++){const sorted=members.map(p=>Math.max(0,p.grossBenefit[y])).sort((a,b)=>a-b);totalReduction[y]+=sorted[0]*0.1;}});return totalReduction;}
+/* ============================ MOTOR FINANCIERO ============================ */
+function priceIndexFor(finId,t,mod={}){const f=FIN_VARS[finId]||{},m=STATE.scenario.macro,i=t-1;const adj=mod.priceShock||0;let rate=0;if(f.priceDriver==='energy')rate=arrVal(m.energy,i);else if(f.priceDriver==='material')rate=arrVal(m.material,i);else if(f.priceDriver==='labor')rate=arrVal(m.labor,i);else if(f.priceDriver==='rev'){rate=arrVal(STATE.scenario.sector.priceAdj,i);return index(rate,t);}else if(f.priceDriver==='carbon'){const base=m.carbon[0]||1;return ((m.carbon[i]||m.carbon[m.carbon.length-1]||base)/base)*(1+adj);}else rate=arrVal(m.ipc,i);return index(rate+adj*100,t);}
+function volumeIndexFor(l,t){let idx=1;for(let k=0;k<t;k++){const g=arrVal(STATE.scenario.macro.revGrowth,k)+num(l.intensityDelta,0);idx*=1+g/100;}return idx;}
+function economicBase(l){normalizeLever(l);const m=leverCalcMethod(l);if(m==='physical')return (l.quantity||0)*(l.unitPrice||0)/1000000;if(m==='frequency')return (num(l.freqVolume,0)*num(l.freqRateBefore,0)/100*num(l.freqUnitCost,0))/1000000;return (l.exposure||0);}
+function baseRevenuePath(mod={}){const f=STATE.fin,r0=f.revenue[2]||STATE.company.revenue||0;let rev=[];let r=r0;for(let i=0;i<(STATE.company.horizon||5);i++){const g=arrVal(STATE.scenario.macro.revGrowth,i)+arrVal(STATE.scenario.sector.demandAdj,i)+arrVal(STATE.scenario.sector.priceAdj,i)+(mod.revGrowthShock||0);r*=1+g/100;rev.push(r);}return rev;}
+function baselineFinancials(mod={}){const f=STATE.fin,h=STATE.company.horizon||5,rev=baseRevenuePath(mod);const r0=f.revenue[2]||STATE.company.revenue||1;const ratios={cogs:(f.cogs[2]||0)/r0,sga:(f.sga[2]||0)/r0,da:(f.da[2]||0)/r0,capex:(f.capex[2]||0)/r0,wc:(f.wc[2]||0)/r0};let ebitda=[],ebit=[],fcf=[],wcPrev=f.wc[2]||0;for(let i=0;i<h;i++){const marginAdj=arrVal(STATE.scenario.sector.marginAdj,i)/100;const cogs=rev[i]*Math.max(0,ratios.cogs-marginAdj);const sga=rev[i]*ratios.sga;const da=rev[i]*ratios.da;const eb=rev[i]-cogs-sga;const ei=eb-da;const tax=Math.max(0,ei)*(STATE.fin.taxRate||0)/100;const capex=rev[i]*ratios.capex;const wc=rev[i]*ratios.wc;const dWC=wc-wcPrev;wcPrev=wc;ebitda.push(eb);ebit.push(ei);fcf.push(ei-tax+da-capex-dWC);}return {rev,ebitda,ebit,fcf};}
+function leverFinancials(l,band='base',mod={}){normalizeLever(l);const v=KPIS[l.kpi],vt=getLeverVt(l),h=STATE.company.horizon||5,tax=(STATE.fin.taxRate||0)/100;const corpW=effectiveWacc(mod);const lwacc=(corpW+leverRiskPremium(l)+(mod.leverWaccShock||0))/100;const success=(STATE.scenario.execution.successRate/100)*(STATE.scenario.execution.adoption/100)*(mod.successMult||1);const delayYears=Math.ceil((STATE.scenario.execution.delayMonths||0)/12);const start=(l.start||1)+delayYears;const dmag=Math.abs((mod.leverDraws&&mod.leverDraws[l.id]!=null?mod.leverDraws[l.id]:(mod.improvementOverride!=null?mod.improvementOverride:(l.d[band]||l.d.base||0))))/100;const base=economicBase(l);const capex=(l.useCapex===false?0:(l.capex||0))*(1+(STATE.scenario.execution.costOverrun||0)/100)*(1+(mod.capexShock||0));const setup=(l.useSetup===false?0:(l.setupOpex||0))*(1+(STATE.scenario.execution.costOverrun||0)/100)*(1+(mod.capexShock||0));const recurring=(l.useRecurring===false?0:(l.recurringOpex||0));const subsidy=l.useSubsidy===false?0:(l.subsidy||0);const netCapex=Math.max(0,capex-subsidy);const depAnnual=l.usefulLife>0?netCapex/l.usefulLife:0;const fadeYears=Math.max(0,num(STATE.fin.fadeYears,0));let benefit=[],ebitda=[],dep=[],taxImpact=[],fcf=[],grossBenefit=[],residualArr=[],terminalArr=[];
+for(let t=1;t<=h;t++){let ramp=0;if(t>=start){ramp=Math.min(1,(t-start+1)/Math.max(1,l.ramp||1));}
+ // fade: una vez en pleno efecto, la ventaja converge linealmente a 0 en fadeYears (0 = sin fade)
+ let fade=1;if(fadeYears>0&&ramp>=1){const yearsFull=t-(start+(l.ramp||1)-1);fade=Math.max(0,1-yearsFull/fadeYears);}
+ let b=0;const pidx=priceIndexFor(leverFinVar(l),t,mod);const volIdx=volumeIndexFor(l,t);const baseY=base*volIdx;if(vt===1){b=baseY*dmag*ramp*fade*pidx*success;}else if(vt===2){const revenueImpact=baseY*dmag*ramp*fade*pidx*success;b=revenueImpact*((l.contributionMargin||35)/100);}else if(vt===3){const sev=band==='low'?l.risk.severityLow:band==='high'?l.risk.severityHigh:l.risk.severityBase;const eventCost=((l.risk.eventCost||base||0)*volIdx)*(sev||100)/100*pidx;const uninsured=1-(l.risk.coveredByInsurance||0)/100;const before=(l.risk.probBefore||0)/100*eventCost*uninsured;const after=(l.risk.probAfter||0)/100*eventCost*uninsured;b=Math.max(0,before-after)*ramp*fade*success;if(!l.risk.eventCost)b=baseY*dmag*ramp*fade*pidx*success;}else if(vt===4){b=baseY*dmag*ramp*fade*success;}
+ const rec=(t>=start?recurring*pidx:0);const setupYear=(t===start?setup:0);const ebitdaImpact=(vt===4?0:b)-rec-setupYear;const depImpact=(t>=start&&t<start+(l.usefulLife||0))?depAnnual:0;const taxable=ebitdaImpact-depImpact;const taxPay=Math.max(0,taxable)*tax;let cf=ebitdaImpact-taxPay;if(t===start)cf-=netCapex;let residualAsset=0,terminalValue=0;if(t===h){if(l.useResidual!==false)residualAsset+=netCapex*((l.residualPct||0)/100);
+   // Valor terminal: solo si está activado a nivel global Y en la palanca. g=0 para ahorro de coste (no crece a perpetuidad). Sin fade activo.
+   if(STATE.fin.terminalDefault&&l.terminal&&vt!==4&&fadeYears===0){const g=(vt===1?0:(STATE.fin.terminalGrowth||0))/100;const terminalCash=Math.max(0,ebitdaImpact-taxPay);if(lwacc>g){terminalValue=(terminalCash*(1+g))/(lwacc-g);}}
+   cf+=residualAsset+terminalValue;}
+ benefit.push(b);grossBenefit.push(b);ebitda.push(ebitdaImpact);dep.push(depImpact);taxImpact.push(taxPay);fcf.push(cf);residualArr.push(residualAsset);terminalArr.push(terminalValue);}
+const fcfExTerminal=fcf.map((x,i)=>x-(terminalArr[i]||0));const disc=fcf.map((x,i)=>x/Math.pow(1+lwacc,i+1));const discEx=fcfExTerminal.map((x,i)=>x/Math.pow(1+lwacc,i+1));const npvWithTerminal=disc.reduce((a,b)=>a+b,0);const npv=discEx.reduce((a,b)=>a+b,0);const terminalPvL=npvWithTerminal-npv;const grossNpv=grossBenefit.reduce((a,b,i)=>a+b/Math.pow(1+lwacc,i+1),0);const investmentPv=(netCapex+setup*(1-tax))/Math.pow(1+lwacc,Math.max(1,start));return {l,benefit,grossBenefit,ebitda,dep,taxImpact,fcf,fcfExTerminal,residualArr,terminalArr,residualValue:residualArr.reduce((a,b)=>a+b,0),terminalValue:terminalArr.reduce((a,b)=>a+b,0),terminalPvL,npv,npvWithTerminal,grossNpv,investmentPv,lwacc:lwacc*100,irr:irr(fcfExTerminal),payback:payback(fcfExTerminal),discountedPayback:payback(discEx),bcr:investmentPv>0?grossNpv/investmentPv:null,vt,capitalValue:vt===4?capitalValue(l,band):0};}
+function effectiveWacc(mod={}){return Math.max(0.1,corporateWacc()+(STATE.scenario.finance.waccAdj||0)+(mod.waccShock||0));}
+function capitalValue(l,band){const d=(l.d[band]||l.d.base||0)/100;const base=economicBase(l);const mult=(STATE.fin.ebitdaMultiple||8)+(STATE.scenario.finance.multipleAdj||0);return base*d*mult;}
+function compute(band=RESULTS_VIEW.band,mod={}){const years=projYears(),h=years.length,wacc=effectiveWacc(mod)/100,base=baselineFinancials(mod);STATE.levers.forEach(normalizeLever);const perLever=STATE.levers.map(l=>leverFinancials(l,band,mod));const active=perLever.filter(p=>p.l.active);let overlapFcf=Array(h).fill(0),overlapBenefit=Array(h).fill(0);for(let i=0;i<active.length;i++){for(let j=i+1;j<active.length;j++){const pct=(STATE.overlaps[overlapKey(active[i].l.id,active[j].l.id)]||0)/100;if(pct>0){for(let y=0;y<h;y++){const dup=Math.min(Math.max(0,active[i].grossBenefit[y]),Math.max(0,active[j].grossBenefit[y]))*pct;overlapBenefit[y]+=dup;overlapFcf[y]+=dup*(1-(STATE.fin.taxRate||0)/100);}}}}
+const aggFcf=Array(h).fill(0),aggEbitda=Array(h).fill(0),aggDep=Array(h).fill(0),aggTax=Array(h).fill(0),aggResidual=Array(h).fill(0),aggTerminal=Array(h).fill(0);active.forEach(p=>{for(let i=0;i<h;i++){aggFcf[i]+=p.fcf[i];aggEbitda[i]+=p.ebitda[i];aggDep[i]+=p.dep[i];aggTax[i]+=p.taxImpact[i];aggResidual[i]+=p.residualArr[i]||0;aggTerminal[i]+=p.terminalArr[i]||0;}});const groupReduction=groupOverlapReduction(active,h);for(let i=0;i<h;i++){aggFcf[i]-=overlapFcf[i]+groupReduction[i]*(1-(STATE.fin.taxRate||0)/100);aggEbitda[i]-=overlapBenefit[i]+groupReduction[i];}
+const disc=aggFcf.map((x,i)=>x/Math.pow(1+wacc,i+1));
+// Agregado coherente: suma de VAN por palanca (cada una a su propia tasa ajustada por riesgo), menos solapamiento.
+const overlapPv=overlapFcf.reduce((a,b,i)=>a+b/Math.pow(1+wacc,i+1),0);
+const aggNpvExTerminal=active.reduce((a,p)=>a+p.npv,0)-overlapPv;
+const terminalPv=active.reduce((a,p)=>a+(p.terminalPvL||0),0);
+const aggNpv=aggNpvExTerminal+terminalPv; // VAN total (con terminal si está activado)
+const grossBenefit=active.reduce((a,p)=>a+p.grossNpv,0)-overlapPv;
+const investmentPv=active.reduce((a,p)=>a+p.investmentPv,0);const totalCapitalValue=active.reduce((a,p)=>a+p.capitalValue,0);const residualPv=aggResidual.reduce((a,b,i)=>a+b/Math.pow(1+wacc,i+1),0);
+const finalEbitda=aggEbitda[h-1]||0;
+// Múltiplo: cota superior NO descontada y sin restar inversión (se etiqueta como tal en la vista).
+const evMultiple=finalEbitda*((STATE.fin.ebitdaMultiple||8)+(STATE.scenario.finance.multipleAdj||0));
+const evDCF=aggNpvExTerminal+terminalPv+totalCapitalValue; // valor para la firma (EV)
+// Puente EV→equity: el VAN ya es a la firma; a fair value la deuda es neutral, así que el impacto en equity = EV impact. Deuda incremental se reporta como memo.
+const incrementalDebt=active.reduce((a,p)=>a+((p.l.useCapex===false?0:(p.l.capex||0))*(p.l.debtPct||0)/100),0);
+const equityImpact=evDCF; // impacto en valor para el accionista (memo: deuda incremental aparte)
+return {years,base,perLever,active,aggFcf,aggEbitda,aggDep,aggTax,aggResidual,aggTerminal,disc,aggNpv,aggNpvExTerminal,grossBenefit,investmentPv,totalCapitalValue,residualPv,terminalPv,finalEbitda,evMultiple,evDCF,equityImpact,incrementalDebt,wacc:effectiveWacc(mod),corpWacc:corporateWacc(),overlapFcf,overlapBenefit,overlapPv};}
+function irr(flows){let low=-0.95,high=5;function npv(r){return flows.reduce((a,c,i)=>a+c/Math.pow(1+r,i),0);}if(!flows.some(x=>x<0)||!flows.some(x=>x>0))return null;for(let i=0;i<80;i++){let mid=(low+high)/2;if(npv(mid)>0)low=mid;else high=mid;}return ((low+high)/2)*100;}
+function payback(flows){let cum=0;for(let i=0;i<flows.length;i++){cum+=flows[i];if(cum>=0)return i+1;}return null;}
+/* ============================ QC ============================ */
+function qualityChecks(){const w=[];if(!STATE.fin.revenue[2]&&!STATE.company.revenue)w.push(['error','Faltan ingresos del año base. El modelo no podrá calcular márgenes ni flujos de caja con calidad.']);if((STATE.fin.wacc||0)<=0)w.push(['error','El coste medio del capital debe ser mayor que cero.']);STATE.levers.forEach(l=>{normalizeLever(l);const vt=getLeverVt(l);if(!l.transmission)w.push(['warn',`La palanca “${l.name}” no tiene vía de transmisión financiera definida.`]);if(!economicBase(l)&&vt!==3)w.push(['warn',`La palanca “${l.name}” no tiene base económica. Revisa si el método debe ser euros, cantidad × precio o frecuencia × coste.`]);if(!(l.d.base||0)&&vt!==3)w.push(['warn',`La palanca “${l.name}” no tiene mejora base definida.`]);if(((l.useCapex!==false)&&(l.capex||0)<0)||((l.useSetup!==false)&&(l.setupOpex||0)<0))w.push(['error',`La palanca “${l.name}” tiene costes negativos.`]);if((l.d.base||0)>80)w.push(['warn',`La mejora base de “${l.name}” parece muy alta. Conviene documentarla.`]);if(vt===3&&!(l.risk.eventCost||economicBase(l)))w.push(['warn',`La palanca de riesgo “${l.name}” no tiene coste de evento ni base económica.`]);if((l.start||1)>STATE.company.horizon)w.push(['warn',`La palanca “${l.name}” empieza después del horizonte de proyección.`]);if(l.useResidual&&((l.residualPct||0)>50))w.push(['warn',`El valor residual de “${l.name}” supera el 50% de la inversión neta. Comprueba que representa un valor recuperable real.`]);if(l.terminal&&l.useResidual)w.push(['warn',`La palanca “${l.name}” usa valor residual y valor terminal. Es válido solo si el activo conserva valor y además los beneficios continúan después del horizonte.`]);if(!l.source)w.push(['warn',`La palanca “${l.name}” no tiene fuente del supuesto.`]);});return w;}
+function renderWarnings(){const checks=qualityChecks();if(!checks.length)return '<div class="note"><b>Control de calidad:</b> no se han detectado alertas relevantes.</div>';return checks.map(([type,msg])=>`<div class="${type==='error'?'err':'warn'}"><b>${type==='error'?'Error':'Aviso'}:</b> ${esc(msg)}</div>`).join('');}
+/* ============================ RESULTADOS ============================ */
+function renderResults(c){if(!STATE.levers.length){c.innerHTML='<div class="note">Define al menos una palanca para ver resultados.</div>';return;}const R=compute();const irrAgg=irr(R.aggFcf);c.innerHTML=`<h2 class="section-title">9 · Resultados</h2><p class="section-lead">Vista financiera completa: flujo de caja libre incremental, valor actual neto, retorno, payback, ranking de palancas y control de calidad.</p>
+<div class="flexbar"><span class="muted strong">Banda de mejora:</span><div class="seg">${['low','base','high'].map(b=>`<button class="${RESULTS_VIEW.band===b?'on':''}" onclick="RESULTS_VIEW.band='${b}';go('results')">${({low:'Bajo',base:'Base',high:'Alto'})[b]}</button>`).join('')}</div><span style="flex:1"></span><button class="btn" onclick="exportResultsCSV()">Exportar CSV</button><button class="btn primary" onclick="printResults()">Exportar PDF</button></div>
+<div class="summary-row"><div class="summary-card"><div class="lbl">VAN (sin valor terminal)</div><div class="value">${fmt(R.aggNpvExTerminal)}</div><div class="sub">Flujos del horizonte @ WACC ${R.corpWacc.toFixed(1)}% + prima por palanca</div></div><div class="summary-card" style="border-left-color:${R.terminalPv>0?'var(--yellow)':'var(--border-strong)'}"><div class="lbl">Memo: valor terminal</div><div class="value">${R.terminalPv>0?fmt(R.terminalPv):'—'}</div><div class="sub">${R.terminalPv>0?'Perpetuidad tras horizonte (activado)':'Desactivado por defecto'}</div></div><div class="summary-card" style="border-left-color:var(--red)"><div class="lbl">Inversión actualizada</div><div class="value">${fmt(R.investmentPv)}</div><div class="sub">CapEx y gasto inicial</div></div><div class="summary-card" style="border-left-color:var(--pacific)"><div class="lbl">TIR / Payback</div><div class="value">${irrAgg==null?'—':fmtp(irrAgg)} / ${payback(R.aggFcf)||'—'}a</div><div class="sub">vs WACC ${R.corpWacc.toFixed(1)}%</div></div></div>
+${!macroCoversHorizon()?`<div class="note" style="border-color:#E6C200;background:#FFFBEA"><b>Aviso:</b> el horizonte es de ${STATE.company.horizon} años pero los vectores de escenario tienen ${STATE.scenario.macro.revGrowth.length} valores. Los años posteriores repiten el último valor del escenario. Amplía los vectores en el paso 7 para gobernar todo el horizonte.</div>`:''}
+<div class="card"><h3>Activar o desactivar palancas</h3><div class="grid4">${STATE.levers.map(l=>`<div class="lever-card ${l.active?'':'inactive'}" style="margin:0"><div class="lever-head"><div class="lever-name">${esc(l.name)}</div><label class="toggle"><input type="checkbox" ${l.active?'checked':''} onchange="toggleLever(${l.id})"><span></span></label></div><div class="hint">${esc(getTransmission(l).short||getTransmission(l).l)}</div></div>`).join('')}</div></div>
+<div class="card"><h3>Control de calidad de inputs</h3>${renderWarnings()}</div>
+<div class="card"><h3>Ranking financiero de palancas</h3><div class="tbl-wrap"><table><thead><tr><th>Ranking</th><th>Palanca</th><th>Vía de impacto</th><th class="right">VAN</th><th class="right">TIR</th><th class="right">Payback</th><th class="right">Ratio beneficio/coste</th><th class="right">EBITDA año final</th></tr></thead><tbody>${R.perLever.slice().sort((a,b)=>b.npv-a.npv).map((p,i)=>`<tr><td>${i+1}</td><td><b>${esc(p.l.name)}</b><div class="hint">${p.l.active?'Activa':'Inactiva'} · ${esc(p.l.confidence||'')}</div></td><td><span class="vt ${VT[p.vt].c}">${VT[p.vt].l}</span></td><td class="right strong">${fmt(p.npv)}</td><td class="right">${p.irr==null?'—':fmtp(p.irr)}</td><td class="right">${p.payback||'—'}</td><td class="right">${p.bcr==null?'—':p.bcr.toFixed(2)+'×'}</td><td class="right">${fmt(p.ebitda[p.ebitda.length-1]||0)}</td></tr>`).join('')}</tbody></table></div></div>
+<div class="card"><h3>Flujo de caja libre incremental</h3><div id="ch_fcf" class="chart"></div></div>
+<div class="card"><h3>Puente de valor de la cartera activa</h3><div id="ch_bridge_results" class="chart"></div></div>
+<div class="card"><h3>Proyección de EBITDA — base vs con palancas</h3><div id="ch_ebitda" class="chart"></div></div>
+<div class="card"><h3>Tabla de flujos de caja</h3><div class="tbl-wrap"><table><thead><tr><th>Concepto</th>${R.years.map(y=>`<th class="right">${y}</th>`).join('')}</tr></thead><tbody>${[['EBITDA incremental',R.aggEbitda],['Amortización incremental',R.aggDep],['Impuestos incrementales',R.aggTax.map(x=>-x)],['Valor residual de activos',R.aggResidual],['Valor terminal de beneficios',R.aggTerminal],['Flujo de caja libre incremental',R.aggFcf],['Flujo descontado',R.disc]].map(([name,arr])=>`<tr><td><b>${name}</b></td>${arr.map(x=>`<td class="right">${fmt(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;drawResultCharts(R);}
+function drawResultCharts(R){Plotly.newPlot('ch_fcf',[{type:'bar',name:'FCF incremental',x:R.years,y:R.aggFcf},{type:'scatter',mode:'lines+markers',name:'FCF descontado',x:R.years,y:R.disc}],{margin:{l:60,r:20,t:10,b:36},font:{family:'Inter',size:12},yaxis:{title:'€M',gridcolor:'rgba(12,35,60,.06)'},legend:{orientation:'h'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});const b=baselineFinancials();Plotly.newPlot('ch_ebitda',[{type:'scatter',mode:'lines+markers',name:'EBITDA sin palancas',x:R.years,y:b.ebitda},{type:'scatter',mode:'lines+markers',name:'EBITDA con palancas',x:R.years,y:b.ebitda.map((x,i)=>x+R.aggEbitda[i]),fill:'tonexty'}],{margin:{l:60,r:20,t:10,b:36},font:{family:'Inter',size:12},yaxis:{title:'EBITDA (€M)',gridcolor:'rgba(12,35,60,.06)'},legend:{orientation:'h'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});drawBridge('ch_bridge_results',R);}
+async function printResults(){
+ if(STATE.page!=='results'){go('results');await new Promise(r=>setTimeout(r,400));}
+ let banner=document.getElementById('printBanner');
+ if(!banner){banner=document.createElement('div');banner.id='printBanner';banner.className='print-only';document.querySelector('.content').prepend(banner);}
+ const co=STATE.company;
+ banner.innerHTML=`<div style="border-bottom:2px solid var(--kpmg-blue);padding-bottom:8px;margin-bottom:14px"><div style="font-family:var(--font-display);font-weight:700;font-size:16px;color:var(--kpmg-blue)">${esc(co.name||'Compañía')} — Impacto financiero de la sostenibilidad</div><div style="font-size:11px;color:var(--muted)">Sector: ${esc(SECTORS[co.sector]||co.sector)} · Geografía: ${esc(co.geography||'')} · Horizonte: ${co.horizon||5} años · Banda: ${RESULTS_VIEW.band} · Generado: ${new Date().toLocaleDateString('es-ES')}</div></div>`;
+ // Convertir charts Plotly a imágenes estáticas de alta resolución para impresión
+ const chartIds=['ch_fcf','ch_bridge_results','ch_ebitda'];
+ const originals={};
+ for(const id of chartIds){
+   const el=document.getElementById(id);
+   if(!el||!el._fullLayout)continue;
+   try{
+     const img=await Plotly.toImage(el,{format:'png',width:900,height:300,scale:2});
+     originals[id]=el.innerHTML;
+     el.innerHTML=`<img src="${img}" style="width:100%;max-height:300px;object-fit:contain">`;
+   }catch(e){console.warn('printResults: no se pudo exportar',id,e);}
+ }
+ setTimeout(()=>{
+   window.print();
+   // Restaurar charts interactivos después de imprimir
+   setTimeout(()=>{Object.entries(originals).forEach(([id,html])=>{const el=document.getElementById(id);if(el)el.innerHTML=html;});},500);
+ },200);
+}
+function drawBridge(id,R){const investment=-R.investmentPv,opex=R.active.reduce((a,p)=>a+p.grossNpv,0),overlap=-(R.overlapPv||0),terminal=R.terminalPv||0,residual=R.residualPv||0,capital=R.totalCapitalValue,total=R.evDCF;Plotly.newPlot(id,[{type:'waterfall',orientation:'v',measure:['relative','relative','relative','relative','relative','total'],x:['Beneficio operativo','Inversión y costes','Solapamientos','Residual','Terminal + capital','Valor de empresa'],y:[opex,investment,overlap,residual,terminal+capital,total],connector:{line:{color:'rgba(90,101,115,.35)'}}}],{margin:{l:60,r:20,t:10,b:40},font:{family:'Inter',size:12},yaxis:{title:'€M',gridcolor:'rgba(12,35,60,.06)'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
+/* ============================ SENSIBILIDAD Y MONTE CARLO ============================ */
+function renderSens(c){const R=compute();c.innerHTML=`<h2 class="section-title">12 · Sensibilidad y Monte Carlo</h2><p class="section-lead">Evalúa qué supuestos mueven más el valor y mide la distribución de posibles resultados.</p>
+${formatNote('Las iteraciones y la semilla de Monte Carlo se introducen como números enteros, sin separadores si es posible. Ejemplo: <code>750</code>.')}
+<div class="card"><h3>Análisis de sensibilidad</h3><div class="note">El gráfico compara el valor actual neto de la cartera activa con movimientos adversos y favorables de los principales supuestos.</div><div id="ch_tornado" class="chart"></div><div id="ch_heat" class="chart"></div></div>
+<div class="card"><h3>Simulación Monte Carlo</h3>
+<div class="grid4"><div>${label('montecarlo','Número de iteraciones')}<input id="mc_iter" type="number" value="${STATE.monteCarlo.iterations}"></div><div>${label('montecarlo','Semilla aleatoria')}<input id="mc_seed" type="number" value="${STATE.monteCarlo.seed}"></div><div style="align-self:end"><button class="btn primary" onclick="runMonteCarlo()">Ejecutar simulación</button></div></div>
+<div class="step-block" style="margin-top:14px"><h4>Distribuciones de incertidumbre <span class="muted" style="font-weight:400;font-size:12px">— ajusta los rangos de cada shock</span></h4>
+<div class="grid4">
+  <div>${label('uncertainty','Shock de precio (σ, %)')}<input type="number" step="0.5" value="${STATE.monteCarlo.params.priceShockSigma}" onchange="STATE.monteCarlo.params.priceShockSigma=num(this.value)"><div class="hint">Desviación típica del shock común a energía y carbono. Ej.: 8 → ±8% 1σ.</div></div>
+  <div>${label('uncertainty','Éxito implantación: mín (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.successMin}" onchange="STATE.monteCarlo.params.successMin=num(this.value)"></div>
+  <div>${label('uncertainty','Éxito implantación: máx (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.successMax}" onchange="STATE.monteCarlo.params.successMax=num(this.value)"><div class="hint">Uniform[mín%,máx%] sobre el factor de éxito (100% = sin penalización).</div></div>
+  <div>${label('uncertainty','Sobrecoste inversión: mín (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.capexShockMin}" onchange="STATE.monteCarlo.params.capexShockMin=num(this.value)"></div>
+  <div>${label('uncertainty','Sobrecoste inversión: máx (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.capexShockMax}" onchange="STATE.monteCarlo.params.capexShockMax=num(this.value)"><div class="hint">Uniform[mín%,máx%] sobre el CapEx de cada palanca. Negativo = ahorro.</div></div>
+  <div>${label('wacc','WACC shock (σ, pp)')}<input type="number" step="0.1" value="${STATE.monteCarlo.params.waccSigma}" onchange="STATE.monteCarlo.params.waccSigma=num(this.value)"><div class="hint">Desviación típica del shock sobre el WACC. Ej.: 0,8 → ±0,8 pp 1σ.</div></div>
+</div></div>
+<div id="mc_stats" style="margin-top:14px"></div><div id="ch_mc" class="chart"></div></div>`;drawSensitivity(R);if(STATE.monteCarlo.last)renderMcStats(STATE.monteCarlo.last);}
+function drawSensitivity(R){const base=R.aggNpv;const tests=[['Coste medio del capital',{waccShock:1},{waccShock:-1}],['Precio energía',{priceShock:-0.10},{priceShock:0.10}],['Crecimiento ingresos',{revGrowthShock:-1},{revGrowthShock:1}],['Coste de inversión',{capexShock:0.20},{capexShock:-0.20}],['Éxito de ejecución',{successMult:0.8},{successMult:1.1}]];const rows=tests.map(([name,low,high])=>{const lo=compute(RESULTS_VIEW.band,low).aggNpv-base,hi=compute(RESULTS_VIEW.band,high).aggNpv-base;return {name,lo,hi};}).sort((a,b)=>Math.abs(b.hi-b.lo)-Math.abs(a.hi-a.lo));Plotly.newPlot('ch_tornado',[{type:'bar',orientation:'h',name:'Escenario adverso',x:rows.map(r=>r.lo),y:rows.map(r=>r.name)},{type:'bar',orientation:'h',name:'Escenario favorable',x:rows.map(r=>r.hi),y:rows.map(r=>r.name)}],{barmode:'overlay',margin:{l:170,r:20,t:10,b:35},font:{family:'Inter',size:12},xaxis:{title:'Cambio en VAN vs base (€M)',zeroline:true,gridcolor:'rgba(12,35,60,.06)'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});const xs=[-2,-1,0,1,2],ys=[-20,-10,0,10,20],z=ys.map(c=>xs.map(w=>compute(RESULTS_VIEW.band,{waccShock:w,capexShock:c/100}).aggNpv));Plotly.newPlot('ch_heat',[{type:'heatmap',x:xs.map(x=>`${x>0?'+':''}${x} pp WACC`),y:ys.map(y=>`${y>0?'+':''}${y}% inversión`),z,colorscale:'RdYlGn'}],{margin:{l:100,r:20,t:20,b:50},font:{family:'Inter',size:12},title:{text:'Mapa de sensibilidad: WACC vs inversión',font:{size:13}},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
+function rng(seed){let s=seed%2147483647;if(s<=0)s+=2147483646;return()=>((s=s*16807%2147483647)-1)/2147483646;}
+function triangular(rand,lo,mode,hi){if(hi<=lo)return mode;const u=rand(),c=(mode-lo)/(hi-lo);return u<c?lo+Math.sqrt(u*(hi-lo)*(mode-lo)):hi-Math.sqrt((1-u)*(hi-lo)*(hi-mode));}
+function gauss(rand){let u=0,v=0;while(u===0)u=rand();while(v===0)v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function runMonteCarlo(){STATE.monteCarlo.iterations=num(document.getElementById('mc_iter').value,750);STATE.monteCarlo.seed=num(document.getElementById('mc_seed').value,42);const p=STATE.monteCarlo.params;const random=rng(STATE.monteCarlo.seed);const levers=STATE.levers.filter(l=>l.active);let vals=[];
+ for(let i=0;i<STATE.monteCarlo.iterations;i++){
+  const leverDraws={};levers.forEach(l=>{const lo=Math.min(l.d.low,l.d.base,l.d.high),hi=Math.max(l.d.low,l.d.base,l.d.high),mode=l.d.base;leverDraws[l.id]=triangular(random,lo,mode,hi);});
+  const z=gauss(random);const priceShock=z*(p.priceShockSigma||8)/100;
+  const successPct=(p.successMin||75)/100+random()*((p.successMax||110)-(p.successMin||75))/100;
+  const capMin=(p.capexShockMin||-15)/100,capMax=(p.capexShockMax||50)/100;
+  const cap=capMin+random()*(capMax-capMin);
+  const w=gauss(random)*(p.waccSigma||0.8);
+  vals.push(compute('base',{leverDraws,priceShock,successMult:successPct,capexShock:cap,waccShock:w}).aggNpv);
+ }
+ vals.sort((a,b)=>a-b);STATE.monteCarlo.last=vals;renderMcStats(vals);}
+function percentile(vals,p){if(!vals.length)return 0;const i=(vals.length-1)*p,l=Math.floor(i),u=Math.ceil(i);return vals[l]+(vals[u]-vals[l])*(i-l);}
+function renderMcStats(vals){const mean=vals.reduce((a,b)=>a+b,0)/vals.length,med=percentile(vals,0.5),p5=percentile(vals,0.05),p95=percentile(vals,0.95),prob=vals.filter(x=>x>0).length/vals.length;const el=document.getElementById('mc_stats');if(el)el.innerHTML=`<div class="summary-row"><div class="summary-card"><div class="lbl">VAN medio</div><div class="value">${fmt(mean)}</div></div><div class="summary-card"><div class="lbl">Mediana</div><div class="value">${fmt(med)}</div></div><div class="summary-card"><div class="lbl">Rango P5–P95</div><div class="value" style="font-size:1.15rem">${fmt(p5)} – ${fmt(p95)}</div></div><div class="summary-card"><div class="lbl">Prob. VAN positivo</div><div class="value">${pct(prob)}</div></div></div>`;if(document.getElementById('ch_mc'))Plotly.newPlot('ch_mc',[{type:'histogram',x:vals,nbinsx:35,name:'Distribución VAN'}],{margin:{l:60,r:20,t:10,b:35},font:{family:'Inter',size:12},xaxis:{title:'VAN (€M)'},yaxis:{title:'Frecuencia'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
+/* ============================ INVESTMENT CASE ============================ */
+function renderCase(c){const R=compute(),irrAgg=irr(R.aggFcf),pay=payback(R.aggFcf);const rec=R.aggNpv>0&&irrAgg!=null&&irrAgg>R.wacc?'Invertir':R.aggNpv>0?'Revisar supuestos':'Descartar o rediseñar';c.innerHTML=`<h2 class="section-title">13 · Investment case</h2><p class="section-lead">Resumen ejecutivo para comité: decisión, retorno, caja, valoración, riesgos y exportación.</p>
+<div class="summary-row"><div class="summary-card"><div class="lbl">Recomendación</div><div class="value" style="font-size:1.35rem">${rec}</div><div class="sub">Basada en VAN, TIR y calidad de inputs</div></div><div class="summary-card"><div class="lbl">Valor actual neto</div><div class="value">${fmt(R.aggNpv)}</div></div><div class="summary-card"><div class="lbl">TIR</div><div class="value">${irrAgg==null?'—':fmtp(irrAgg)}</div></div><div class="summary-card"><div class="lbl">Payback</div><div class="value">${pay||'—'} años</div></div></div>
+<div class="card"><h3>Mensaje ejecutivo</h3><p>La cartera activa genera un valor actual neto estimado de <b>${fmt(R.aggNpv)}</b>, con una inversión actualizada de <b>${fmt(R.investmentPv)}</b>. El impacto recurrente en EBITDA del último año proyectado asciende a <b>${fmt(R.finalEbitda)}</b>. Por múltiplos, el impacto indicativo en valor de empresa sería de <b>${fmt(R.evMultiple)}</b>, sujeto a validación sectorial y riesgo de ejecución.</p>
+<p style="margin-top:8px"><b>Rating de sostenibilidad:</b> la compañía tiene un rating interno <b>${STATE.company.asg}</b> (${({A:'referente del sector',B:'alineado con mercado',C:'por debajo de mercado',D:'rezagado significativo'})[STATE.company.asg]||'sin clasificar'}), que ajusta el WACC en <b>${asgWaccAdj()>0?'+':''}${asgWaccAdj().toFixed(2)} pp</b>. ${STATE.company.asg==='C'||STATE.company.asg==='D'?'Mejorar el rating hacia B podría reducir el coste de capital y aumentar el VAN de la cartera.':STATE.company.asg==='A'?'El rating A ya aporta una ventaja de coste de capital que refuerza el caso de inversión.':''}</p>
+${renderWarnings()}</div>
+<div class="card"><h3>Puente de valor para comité</h3><div id="ch_bridge_case" class="chart"></div></div>
+<div class="card"><h3>Valoración</h3><div class="tbl-wrap"><table><thead><tr><th>Método</th><th>Descripción</th><th class="right">Impacto estimado</th></tr></thead><tbody>
+<tr><td><b>DCF — flujos del horizonte</b></td><td>Valor actual neto de los flujos incrementales, sin valor terminal.</td><td class="right strong">${fmt(R.aggNpvExTerminal)}</td></tr>
+<tr><td>Valor terminal (memo)</td><td>Perpetuidad tras el horizonte. ${R.terminalPv>0?'Activado':'Desactivado por defecto'} · g=0 para ahorro de coste.</td><td class="right">${R.terminalPv>0?fmt(R.terminalPv):'—'}</td></tr>
+<tr><td><b>EV impact (DCF)</b></td><td>DCF + terminal + canal de capital. Valor para la firma.</td><td class="right strong">${fmt(R.evDCF)}</td></tr>
+<tr><td>Múltiplo EBITDA <span class="badge b-yellow">cota superior</span></td><td>EBITDA del último año × múltiplo, <b>sin descontar ni restar inversión</b>. No comparable directamente con el DCF.</td><td class="right">${fmt(R.evMultiple)}</td></tr>
+<tr><td><b>Equity value impact</b></td><td>A coste de deuda razonable la deuda es neutral en valor, por lo que el impacto en equity ≈ EV impact.</td><td class="right strong">${fmt(R.equityImpact)}</td></tr>
+<tr><td>Deuda incremental (memo)</td><td>Deuda nueva para financiar el CapEx. No reduce el valor; cambia la composición.</td><td class="right">${fmt(R.incrementalDebt)}</td></tr>
+</tbody></table></div>
+<div class="note"><b>Cómo leerlo:</b> la cifra de decisión es el <b>DCF de flujos del horizonte</b>. El valor terminal y el múltiplo son referencias de techo; un comité los trata como sensibilidad al alza, no como el caso base.</div></div>
+<div class="card"><h3>Exportación</h3><div class="row-actions"><button class="btn primary" onclick="exportResultsCSV()">Exportar resultados CSV</button><button class="btn" onclick="exportModelJSON()">Exportar modelo JSON</button><button class="btn" onclick="window.print()">Imprimir / PDF</button></div><div class="hint">El PDF se genera desde el navegador usando la opción de impresión.</div></div>`;drawBridge('ch_bridge_case',R);}
+function exportResultsCSV(){const R=compute();let rows=[['Año',...R.years],['FCF incremental',...R.aggFcf],['FCF descontado',...R.disc],['EBITDA incremental',...R.aggEbitda],['Impuestos incrementales',...R.aggTax.map(x=>-x)],['Valor residual activos',...R.aggResidual],['Valor terminal beneficios',...R.aggTerminal]];rows.push([]);rows.push(['Palanca','Activa','VAN','TIR','Payback','BCR','EBITDA final']);R.perLever.forEach(p=>rows.push([p.l.name,p.l.active?'Sí':'No',p.npv,p.irr??'',p.payback??'',p.bcr??'',p.ebitda[p.ebitda.length-1]||0]));downloadBlob('sva_resultados.csv',rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n'),'text/csv');}
+function exportModelJSON(){downloadBlob('sva_modelo.json',JSON.stringify({STATE,FIN_VARS,KPIS},null,2),'application/json');}
+/* ============================ 12 DETALLE DE CÁLCULOS ============================ */
+function leverDetailRows(p,band){
+ const l=p.l,v=KPIS[l.kpi],h=STATE.company.horizon||5;
+ const delayYears=Math.ceil((STATE.scenario.execution.delayMonths||0)/12);
+ const start=(l.start||1)+delayYears;
+ const dmag=Math.abs(l.d[band]||l.d.base||0)/100;
+ const base=economicBase(l);
+ const rows=[];
+ for(let t=1;t<=h;t++){
+   let ramp=0; if(t>=start)ramp=Math.min(1,(t-start+1)/Math.max(1,l.ramp||1));
+   const pidx=priceIndexFor(leverFinVar(l),t);
+   const volIdx=volumeIndexFor(l,t);
+   rows.push({year:projYears()[t-1],base0:base,volIdx:volIdx,baseY:base*volIdx,ramp:ramp,pidx:pidx,improvement:dmag*100,
+     benefit:p.benefit[t-1]||0,ebitda:p.ebitda[t-1]||0,dep:p.dep[t-1]||0,tax:p.taxImpact[t-1]||0,
+     residual:p.residualArr[t-1]||0,terminal:p.terminalArr[t-1]||0,fcf:p.fcf[t-1]||0,
+     disc:(p.fcf[t-1]||0)/Math.pow(1+effectiveWacc()/100,t)});
+ }
+ return rows;
+}
+function renderDetail(c){
+ if(!STATE.levers.length){c.innerHTML='<h2 class="section-title">14 · Detalle de cálculos</h2><div class="note">Define al menos una palanca para ver el detalle proyectado.</div>';return;}
+ const band=RESULTS_VIEW.band||'base';const R=compute(band);
+ if(RESULTS_VIEW.detailLever==null||!STATE.levers.find(l=>l.id===RESULTS_VIEW.detailLever))RESULTS_VIEW.detailLever=STATE.levers[0].id;
+ const sel=RESULTS_VIEW.detailLever;
+ c.innerHTML=`<h2 class="section-title">14 · Detalle de cálculos</h2>
+ <p class="section-lead">Proyección año a año de cada palanca: la cadena completa desde la base y la mejora del KPI hasta el flujo de caja descontado. Exportable por palanca o agregada a CSV/Excel.</p>
+ <div class="flexbar">
+   <span class="muted strong">Palanca:</span>
+   <select style="max-width:340px" onchange="RESULTS_VIEW.detailLever=num(this.value);go('detail')">${STATE.levers.map(l=>`<option value="${l.id}" ${l.id===sel?'selected':''}>${esc(l.name)}${l.active?'':' (inactiva)'}</option>`).join('')}</select>
+   <span class="muted strong">Banda:</span><div class="seg">${['low','base','high'].map(b=>`<button class="${band===b?'on':''}" onclick="RESULTS_VIEW.band='${b}';go('detail')">${({low:'Bajo',base:'Base',high:'Alto'})[b]}</button>`).join('')}</div>
+   <span style="flex:1"></span>
+   <button class="btn" onclick="exportDetailCSV(${sel})">Exportar esta palanca (CSV)</button>
+   <button class="btn primary" onclick="exportAllDetailCSV()">Exportar todas (Excel)</button>
+ </div>`;
+ const p=R.perLever.find(x=>x.l.id===sel),l=p.l,v=KPIS[l.kpi],f=FIN_VARS[leverFinVar(l)]||FIN_VARS[v.fin]||{},t=getTransmission(l);
+ const rows=leverDetailRows(p,band);
+ const trans=(leverCalcMethod(l)==='physical')?`${(l.quantity||0).toLocaleString()} ${v.u} × €${(l.unitPrice||0).toLocaleString()}/${v.u}`:(leverCalcMethod(l)==='frequency')?`${num(l.freqVolume,0).toLocaleString()} × (${num(l.freqRateBefore,0)}%→${num(l.freqRateAfter,0)}%) × €${num(l.freqUnitCost,0).toLocaleString()}`:`base económica €${(l.exposure||0).toFixed(1)}M`;
+ c.innerHTML+=`<div class="card">
+   <h3>${esc(l.name)} <span class="vt ${t.c}">${esc(t.short||t.l)}</span></h3>
+   <div class="hint" style="margin:-6px 0 12px">${l.kpi} · ${esc(v.n)} → ${esc(f.n)} (${esc(f.line)}) · ${trans} · mejora ${band} ${(Math.abs(l.d[band]||l.d.base||0)).toFixed(1)}%</div>
+   <div class="tbl-wrap"><table>
+     <thead><tr><th>Concepto</th>${rows.map(r=>`<th class="right">${r.year}</th>`).join('')}</tr></thead>
+     <tbody>
+       ${detRow('Base inicial (€M)',rows.map(r=>r.base0.toFixed(1)))}
+       ${detRow('Índice de volumen / actividad',rows.map(r=>r.volIdx.toFixed(3)))}
+       ${detRow('Base proyectada del año (€M)',rows.map(r=>r.baseY.toFixed(1)),true)}
+       ${detRow('Mejora del KPI aplicada (%)',rows.map(r=>r.improvement.toFixed(1)))}
+       ${detRow('Despliegue / ramp-up (%)',rows.map(r=>(r.ramp*100).toFixed(0)))}
+       ${detRow('Índice de precio (escenario)',rows.map(r=>r.pidx.toFixed(3)))}
+       ${detRow('Beneficio bruto (€M)',rows.map(r=>r.benefit.toFixed(2)),true)}
+       ${detRow('Amortización incremental (€M)',rows.map(r=>(-r.dep).toFixed(2)))}
+       ${detRow('EBITDA incremental (€M)',rows.map(r=>r.ebitda.toFixed(2)),true)}
+       ${detRow('Impuestos (€M)',rows.map(r=>(-r.tax).toFixed(2)))}
+       ${detRow('Valor residual (€M)',rows.map(r=>r.residual.toFixed(2)))}
+       ${detRow('Valor terminal (€M)',rows.map(r=>r.terminal.toFixed(2)))}
+       ${detRow('Flujo de caja libre (€M)',rows.map(r=>r.fcf.toFixed(2)),true)}
+       ${detRow('FCF descontado (€M)',rows.map(r=>r.disc.toFixed(2)),true)}
+     </tbody>
+   </table></div>
+   <div class="summary-row" style="margin-top:16px">
+     <div class="summary-card"><div class="lbl">VAN palanca</div><div class="value">${fmt(p.npv)}</div></div>
+     <div class="summary-card"><div class="lbl">TIR</div><div class="value">${p.irr==null?'—':fmtp(p.irr)}</div></div>
+     <div class="summary-card"><div class="lbl">Payback</div><div class="value">${p.payback||'—'} a</div></div>
+     <div class="summary-card"><div class="lbl">Ratio beneficio/coste</div><div class="value">${p.bcr==null?'—':p.bcr.toFixed(2)+'×'}</div></div>
+   </div>
+ </div>
+ <div class="card">
+   <h3>Proyección agregada (palancas activas)</h3>
+   <div class="tbl-wrap"><table>
+     <thead><tr><th>Concepto</th>${R.years.map(y=>`<th class="right">${y}</th>`).join('')}<th class="right">Total</th></tr></thead>
+     <tbody>
+       ${detRowT('EBITDA incremental (€M)',R.aggEbitda)}
+       ${detRowT('Impuestos (€M)',R.aggTax.map(x=>-x))}
+       ${detRowT('FCF incremental (€M)',R.aggFcf,true)}
+       ${detRowT('FCF descontado (€M)',R.disc,true)}
+     </tbody>
+   </table></div>
+   <div class="hint" style="margin-top:8px">VAN agregado de la cartera activa: <b>${fmt(R.aggNpv)}</b> · descontado al ${R.wacc.toFixed(1)}%.</div>
+ </div>`;
+}
+function detRow(label,vals,strong){return `<tr><td>${strong?'<b>'+label+'</b>':label}</td>${vals.map(x=>`<td class="right${strong?' strong':''}">${x}</td>`).join('')}</tr>`;}
+function detRowT(label,arr,strong){const tot=arr.reduce((a,b)=>a+(+b||0),0);return `<tr><td>${strong?'<b>'+label+'</b>':label}</td>${arr.map(x=>`<td class="right${strong?' strong':''}">${(+x).toFixed(2)}</td>`).join('')}<td class="right strong">${tot.toFixed(2)}</td></tr>`;}
+function detailMatrix(p,band){const rows=leverDetailRows(p,band),yrs=rows.map(r=>r.year);return [
+ ['Año',...yrs],['Base inicial (€M)',...rows.map(r=>+r.base0.toFixed(3))],
+ ['Índice de volumen / actividad',...rows.map(r=>+r.volIdx.toFixed(4))],
+ ['Base proyectada del año (€M)',...rows.map(r=>+r.baseY.toFixed(3))],
+ ['Mejora del KPI aplicada (%)',...rows.map(r=>+r.improvement.toFixed(2))],
+ ['Despliegue / ramp-up (%)',...rows.map(r=>+(r.ramp*100).toFixed(1))],
+ ['Índice de precio (escenario)',...rows.map(r=>+r.pidx.toFixed(4))],
+ ['Beneficio bruto (€M)',...rows.map(r=>+r.benefit.toFixed(3))],
+ ['Amortización incremental (€M)',...rows.map(r=>+(-r.dep).toFixed(3))],
+ ['EBITDA incremental (€M)',...rows.map(r=>+r.ebitda.toFixed(3))],
+ ['Impuestos (€M)',...rows.map(r=>+(-r.tax).toFixed(3))],
+ ['Valor residual (€M)',...rows.map(r=>+r.residual.toFixed(3))],
+ ['Valor terminal (€M)',...rows.map(r=>+r.terminal.toFixed(3))],
+ ['Flujo de caja libre (€M)',...rows.map(r=>+r.fcf.toFixed(3))],
+ ['FCF descontado (€M)',...rows.map(r=>+r.disc.toFixed(3))]];}
+function csvFromRows(rows){return rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')).join('\n');}
+function exportDetailCSV(id){const band=RESULTS_VIEW.band||'base';const R=compute(band);const p=R.perLever.find(x=>x.l.id===id);downloadBlob(`sva_detalle_${(p.l.name||'palanca').replace(/[^a-z0-9]+/gi,'_')}.csv`,csvFromRows(detailMatrix(p,band)),'text/csv;charset=utf-8;');}
+function exportAllDetailCSV(){const band=RESULTS_VIEW.band||'base';const R=compute(band);let out=[];
+ out.push(['SVA — Detalle de cálculos proyectados']);out.push(['Banda',band]);out.push(['WACC efectivo (%)',+R.wacc.toFixed(2)]);out.push([]);
+ R.perLever.forEach(p=>{out.push(['PALANCA',p.l.name,p.l.active?'Activa':'Inactiva']);detailMatrix(p,band).forEach(r=>out.push(r));
+   out.push(['VAN',+p.npv.toFixed(3),'TIR',p.irr==null?'':+p.irr.toFixed(2),'Payback',p.payback||'','BCR',p.bcr==null?'':+p.bcr.toFixed(2)]);out.push([]);});
+ out.push(['AGREGADO CARTERA ACTIVA']);out.push(['Año',...R.years]);
+ out.push(['EBITDA incremental (€M)',...R.aggEbitda.map(x=>+x.toFixed(3))]);
+ out.push(['FCF incremental (€M)',...R.aggFcf.map(x=>+x.toFixed(3))]);
+ out.push(['FCF descontado (€M)',...R.disc.map(x=>+x.toFixed(3))]);
+ out.push(['VAN agregado',+R.aggNpv.toFixed(3)]);
+ downloadBlob('sva_detalle_calculos.csv',csvFromRows(out),'text/csv;charset=utf-8;');}
+/* ============================ ASIGNACIÓN DE CAPITAL ============================ */
+function renderCapital(c){
+ if(!STATE.levers.length){c.innerHTML='<h2 class="section-title">10 · Asignación de capital</h2><div class="note">Define palancas para analizar la asignación de capital.</div>';return;}
+ const band=RESULTS_VIEW.band||'base';const R=compute(band);
+ // ordenar TODAS las palancas (activas o no) por índice de rentabilidad = VAN / inversión
+ const ranked=R.perLever.map(p=>{const inv=Math.max(0.0001,p.investmentPv);return {p,pi:p.npv/inv,inv:p.investmentPv};}).sort((a,b)=>b.pi-a.pi);
+ if(RESULTS_VIEW.budget==null)RESULTS_VIEW.budget=Math.round(R.perLever.reduce((a,p)=>a+p.investmentPv,0));
+ const budget=RESULTS_VIEW.budget;
+ // frontera: incluir por orden de PI mientras quede presupuesto
+ let spent=0,cumNpv=0;const picked=[];ranked.forEach(r=>{if(r.p.npv<=0)return;if(spent+r.inv<=budget){picked.push(r.p.l.id);spent+=r.inv;cumNpv+=r.p.npv;}});
+ c.innerHTML=`<h2 class="section-title">10 · Asignación de capital</h2>
+ <p class="section-lead">Prioriza las palancas por retorno sobre capital (índice de rentabilidad = VAN / inversión) y simula qué cartera maximiza el VAN bajo una restricción de presupuesto.</p>
+ <div class="flexbar"><span class="muted strong">Banda:</span><div class="seg">${['low','base','high'].map(b=>`<button class="${band===b?'on':''}" onclick="RESULTS_VIEW.band='${b}';go('capital')">${({low:'Bajo',base:'Base',high:'Alto'})[b]}</button>`).join('')}</div>
+   <span class="muted strong" style="margin-left:12px">Presupuesto de inversión (€M):</span><input type="number" value="${budget}" style="width:120px" onchange="RESULTS_VIEW.budget=num(this.value);go('capital')"></div>
+ <div class="summary-row">
+   <div class="summary-card"><div class="lbl">Cartera óptima bajo presupuesto</div><div class="value">${fmt(cumNpv)}</div><div class="sub">VAN con ${picked.length} palancas y €${spent.toFixed(0)}M invertidos</div></div>
+   <div class="summary-card" style="border-left-color:var(--green)"><div class="lbl">Palancas que superan el hurdle</div><div class="value">${ranked.filter(r=>r.p.npv>0).length}/${R.perLever.length}</div><div class="sub">VAN positivo a su tasa ajustada por riesgo</div></div>
+   <div class="summary-card" style="border-left-color:var(--pacific)"><div class="lbl">Capital sin asignar</div><div class="value">${fmt(Math.max(0,budget-spent))}</div></div>
+ </div>
+ <div class="card"><h3>Ranking por índice de rentabilidad</h3><div class="tbl-wrap"><table>
+   <thead><tr><th>#</th><th>Palanca</th><th>Tipo</th><th class="right">VAN</th><th class="right">Inversión PV</th><th class="right">Índice rentab.</th><th class="right">TIR</th><th class="right">WACC palanca</th><th class="right">En cartera óptima</th></tr></thead>
+   <tbody>${ranked.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.p.l.name)}</b><div class="hint">${esc(r.p.l.confidence||'')}</div></td><td><span class="vt ${VT[r.p.vt].c}">${VT[r.p.vt].l}</span></td><td class="right strong" style="color:${r.p.npv>=0?'var(--green)':'var(--red)'}">${fmt(r.p.npv)}</td><td class="right">${fmt(r.inv)}</td><td class="right strong">${isFinite(r.pi)?r.pi.toFixed(2)+'×':'—'}</td><td class="right">${r.p.irr==null?'—':fmtp(r.p.irr)}</td><td class="right">${(r.p.lwacc||R.corpWacc).toFixed(1)}%</td><td class="right">${picked.includes(r.p.l.id)?'<span class="badge b-green">Sí</span>':'<span class="badge b-grey">No</span>'}</td></tr>`).join('')}</tbody>
+ </table></div>
+ <div class="note">El índice de rentabilidad ordena el capital por eficiencia: a igualdad de presupuesto, priorizar VAN/inversión maximiza el valor creado. Las palancas con VAN negativo a su tasa ajustada por riesgo no entran aunque sobre presupuesto.</div></div>`;
+}
+/* ============================ COSTE DE INACCIÓN ============================ */
+function renderInaction(c){
+ const band=RESULTS_VIEW.band||'base';const R=compute(band);
+ // El coste de inacción se aproxima con las palancas de tipo riesgo evitado (③): si no se actúa, esa pérdida esperada se materializa.
+ const riskLevers=R.perLever.filter(p=>p.vt===3);
+ const inactionPv=riskLevers.reduce((a,p)=>a+p.npv,0);
+ c.innerHTML=`<h2 class="section-title">11 · Coste de inacción</h2>
+ <p class="section-lead">El otro lado del caso: qué valor se pone en riesgo si la compañía <b>no</b> actúa. Se estima a partir de las palancas de riesgo evitado (③) — la pérdida esperada que se materializaría — y sirve de contrapeso al valor de creación.</p>
+ <div class="summary-row">
+   <div class="summary-card" style="border-left-color:var(--red)"><div class="lbl">Valor en riesgo por no actuar</div><div class="value">${fmt(inactionPv)}</div><div class="sub">VAN de las palancas de riesgo evitado</div></div>
+   <div class="summary-card" style="border-left-color:var(--green)"><div class="lbl">Valor de creación (resto)</div><div class="value">${fmt(R.aggNpvExTerminal-inactionPv)}</div><div class="sub">Coste e ingreso (① y ②)</div></div>
+   <div class="summary-card"><div class="lbl">Caso completo</div><div class="value">${fmt(R.aggNpvExTerminal)}</div><div class="sub">Creación + protección</div></div>
+ </div>
+ ${riskLevers.length?`<div class="card"><h3>Desglose del riesgo evitado</h3><div class="tbl-wrap"><table>
+   <thead><tr><th>Palanca</th><th class="right">Prob. sin actuar</th><th class="right">Prob. actuando</th><th class="right">Coste del evento</th><th class="right">Valor protegido (VAN)</th></tr></thead>
+   <tbody>${riskLevers.map(p=>`<tr><td><b>${esc(p.l.name)}</b></td><td class="right">${(p.l.risk.probBefore||0)}%</td><td class="right">${(p.l.risk.probAfter||0)}%</td><td class="right">${fmt(p.l.risk.eventCost||0)}</td><td class="right strong">${fmt(p.npv)}</td></tr>`).join('')}</tbody>
+ </table></div><div class="note">Lectura para comité: aun si el caso de creación de valor fuese ajustado, el <b>coste de inacción</b> de ${fmt(inactionPv)} es valor que se pierde por defecto. Conviene presentarlo junto al valor de creación, no por separado.</div></div>`:'<div class="note">No hay palancas de tipo «riesgo evitado» (③). Añade alguna —p. ej. multas, recalls, exclusión de licitaciones, CBAM no mitigado— para cuantificar el coste de no actuar.</div>'}`;
+}
+/* ============================ REGISTRO DE SUPUESTOS (AUDITORÍA) ============================ */
+function leverQualityFlags(l){const v=KPIS[l.kpi],flags=[];normalizeLever(l);if(!l.transmission)flags.push('Sin vía de transmisión');if(!l.source||!l.source.trim())flags.push('Sin fuente del supuesto');if(l.confidence==='Baja')flags.push('Confianza baja');const hist=STATE.kpidata[l.kpi];if(!hist||hist.every(x=>!x))flags.push('Sin histórico ASG');const base=economicBase(l);if(!base)flags.push('Base económica = 0');if((l.d.base||0)===0)flags.push('Mejora base = 0');
+ // base anómala vs histórico no disponible aquí; chequeo de coherencia simple
+ if(base&&(l.d.base||0)&&base*(l.d.base/100)>base)flags.push('Mejora supera la base');
+ return flags;}
+function renderAudit(c){
+ if(!STATE.levers.length){c.innerHTML='<h2 class="section-title">15 · Registro de supuestos</h2><div class="note">Define palancas para generar el registro auditable.</div>';return;}
+ const rows=STATE.levers.map(l=>{normalizeLever(l);const v=KPIS[l.kpi],f=FIN_VARS[leverFinVar(l)]||FIN_VARS[v.fin]||{},flags=leverQualityFlags(l),t=getTransmission(l);return {l,v,f,flags,t};});
+ const totalFlags=rows.reduce((a,r)=>a+r.flags.length,0);
+ c.innerHTML=`<h2 class="section-title">15 · Registro de supuestos</h2>
+ <p class="section-lead">Trazabilidad para revisión y auditoría: cada palanca con su supuesto clave, fuente, confianza y banderas de calidad automáticas. Exportable para el archivo del proyecto.</p>
+ <div class="flexbar"><div class="summary-card" style="margin:0"><div class="lbl">Banderas de calidad abiertas</div><div class="value" style="font-size:1.4rem;color:${totalFlags?'var(--red)':'var(--green)'}">${totalFlags}</div></div>
+   <span style="flex:1"></span><button class="btn primary" onclick="exportAuditCSV()">Exportar registro (CSV)</button></div>
+ <div class="card"><div class="tbl-wrap"><table>
+   <thead><tr><th>Palanca</th><th>Variable ASG → financiera</th><th>Supuesto base</th><th>Confianza</th><th>Fuente</th><th>Banderas de calidad</th></tr></thead>
+   <tbody>${rows.map(r=>`<tr><td><b>${esc(r.l.name)}</b><div class="hint">${esc(r.t.short||r.t.l)} · ${esc(STATE.perimeters.find(p=>p.id===r.l.perimeter)?.name||'')}</div></td><td>${r.l.kpi} ${esc(r.v.n)} → ${esc(r.f.n)}</td><td>${fmtp(r.l.d.base||0)} sobre ${fmt(economicBase(r.l))}</td><td><span class="badge ${r.l.confidence==='Alta'?'b-green':r.l.confidence==='Baja'?'b-red':'b-yellow'}">${esc(r.l.confidence||'—')}</span></td><td class="hint">${esc(r.l.source||'—')}</td><td>${r.flags.length?r.flags.map(x=>`<span class="badge b-red" style="display:inline-block;margin:1px">${esc(x)}</span>`).join(''):'<span class="badge b-green">OK</span>'}</td></tr>`).join('')}</tbody>
+ </table></div></div>`;
+}
+function exportAuditCSV(){const rows=[['Palanca','Variable ASG','Variable financiera','Vía de transmisión','Base económica (€M)','Mejora base (%)','Confianza','Fuente','Banderas de calidad']];STATE.levers.forEach(l=>{normalizeLever(l);const v=KPIS[l.kpi],f=FIN_VARS[leverFinVar(l)]||FIN_VARS[v.fin]||{},t=getTransmission(l);rows.push([l.name,v.n,f.n,t.l,economicBase(l).toFixed(2),(l.d.base||0),l.confidence||'',l.source||'',leverQualityFlags(l).join('; ')||'OK']);});downloadBlob('sva_registro_supuestos.csv',csvFromRows(rows),'text/csv;charset=utf-8;');}
+/* ============================ METODOLOGÍA ============================ */
+function renderMethod(c){c.innerHTML=`<h2 class="section-title">16 · Metodología y limitaciones</h2><div class="card methodology"><h3>Lógica financiera</h3><p>El modelo calcula el impacto incremental de cada palanca frente a un caso sin palanca (contrafactual), bajo el mismo escenario macro. El resultado principal es el <b>flujo de caja libre incremental después de impuestos, descontado, y sin valor terminal</b>.</p><h3>Separación ASG → palanca → vía financiera</h3><p>Las variables ASG son neutras: describen <b>qué cambia</b> (MWh, tCO₂e, rotación, accidentes, proveedores auditados). La monetización se define en cada <b>palanca</b>, seleccionando una vía de transmisión financiera y una partida financiera afectada. Así, una misma variable —por ejemplo emisiones— puede monetizarse como carbon tax evitado, riesgo regulatorio evitado, ingreso protegido o mejora de financiación.</p><h3>Vías de transmisión financiera</h3><ul><li><b>Reducción de coste operativo recurrente:</b> menor consumo, coste unitario o ineficiencia.</li><li><b>Coste regulatorio/fiscal evitado:</b> carbon tax, tasas, cánones, RAP, vertedero.</li><li><b>Riesgo evitado / pérdida esperada:</b> probabilidad × severidad × exposición.</li><li><b>Ingreso incremental:</b> nuevas ventas por producto, mercado, cliente o premium price.</li><li><b>Ingreso protegido:</b> ventas o contratos defendidos frente a pérdida o exclusión.</li><li><b>Productividad / capacidad liberada:</b> horas, días, eventos o capacidad recuperada.</li><li><b>CapEx evitado, diferido o incremental:</b> inversión base frente a inversión con palanca.</li><li><b>Valor de activo / deterioro evitado:</b> impairments, stranded assets o valor residual protegido.</li><li><b>Financiación / coste de capital:</b> spread, seguro, WACC, covenants o financiación sostenible.</li><li><b>Incentivos, subvenciones o beneficios fiscales:</b> grants, tax credits o deducciones.</li></ul><h3>Coste de capital</h3><p>El WACC puede introducirse directamente o calcularse por build-up (Ke·E/V + Kd·(1−t)·D/V). Cada palanca se descuenta a una <b>tasa ajustada por riesgo</b>: el WACC corporativo más una prima según la confianza declarada de la palanca.</p><h3>Base creciente</h3><p>La base sobre la que actúa cada palanca crece año a año con el crecimiento de ingresos del escenario (motor de volumen) y con el índice de precios del escenario (motor de precio), con un ajuste opcional de intensidad. En palancas de ingresos, el crecimiento de volumen y el ajuste de precio están separados para evitar doble conteo.</p><h3>Valor terminal y valoración</h3><p><b>El valor terminal está desactivado por defecto.</b> Si se activa, usa crecimiento perpetuo g=0 para ahorros de coste y se reporta como memorándum. La cifra de decisión es el DCF de los flujos del horizonte; múltiplos y terminal son referencias de sensibilidad, no caso base.</p><h3>Limitaciones</h3><ul><li>Las elasticidades son supuestos del usuario, no regresiones.</li><li>El solapamiento es por pares; con tres o más palancas sobre la misma línea puede requerir criterio.</li><li>Los vectores de escenario que no cubren todo el horizonte repiten su último valor.</li><li>La línea base no recalcula automáticamente sus sublíneas; el impacto se reporta incremental.</li><li>El modelo es cliente-side: no guarda datos fuera del navegador salvo exportación manual.</li></ul></div>`;}
+/* ============================ EJEMPLO / RESET ============================ */
+function loadExample(){STATE=blankState();lid=1;pid=1;STATE.company={name:'Farmacéutica Demo, S.A.',sector:'PH',asg:'B',revenue:1200,model:'Fabricante integrado',geography:'Unión Europea',baseYear:2025,horizon:7,currency:'€M'};STATE.perimeters=[{id:'P0',name:'Toda la compañía',type:'Compañía',geography:'Global',shareRevenue:100,description:'Perímetro completo'},{id:'P1',name:'Plantas Europa',type:'Unidad de negocio',geography:'Unión Europea',shareRevenue:65,description:'Centros productivos europeos'},{id:'P2',name:'Línea productos hospitalarios',type:'Producto',geography:'Global',shareRevenue:35,description:'Productos con mayor exposición a compras públicas'}];STATE.fin={revenue:[1050,1120,1200],cogs:[472,498,540],sga:[231,246,264],da:[63,67,72],ebitdaAdj:[0,4,5],extraordinary:[6,0,3],capex:[74,78,84],energyCost:[55,58,62],carbonCost:[5,6,7],materialCost:[180,195,210],personnelCost:[290,310,330],waterWasteCost:[12,13,14],qualityCost:[22,25,28],employees:[3200,3300,3400],netFinancial:[18,19,20],wc:[210,225,240],netDebt:[300,310,320],equity:[600,640,690],taxRate:25,wacc:8.5,costDebt:5.2,costEquity:10.5,terminalGrowth:1.5,ebitdaMultiple:9.0,baseEV:4200,variableCostPct:65,waccMode:'buildup',debtWeight:35,terminalDefault:false,fadeYears:0,riskPremium:{Alta:0,Media:1.5,Baja:3.5}};STATE.levers=[{id:lid++,name:'Programa de eficiencia energética',kpi:'K-E01',transmission:'opex_reduction',finVar:'F-01',perimeter:'P1',active:true,calcMethod:'economic',exposure:62,quantity:505000,unitPrice:122,unitLabel:'MWh',d:{low:9,base:15,high:21},uncertainty:'Media',advanced:false,contributionMargin:35,capex:25,setupOpex:1.5,recurringOpex:0.8,subsidy:2,useCapex:true,useSetup:true,useRecurring:true,useSubsidy:true,usefulLife:10,residualPct:15,useResidual:true,start:1,ramp:3,terminal:true,financing:'debt',debtPct:50,debtRate:5.5,financingTerm:6,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'Auditoría energética interna',confidence:'Alta'},{id:lid++,name:'Retención de talento clave',kpi:'K-S01',transmission:'productivity_capacity',finVar:'F-12',perimeter:'P0',active:true,calcMethod:'frequency',exposure:18,freqVolume:3400,freqRateBefore:12.5,freqRateAfter:10,freqUnitCost:25000,quantity:420,unitPrice:43000,unitLabel:'empleados',d:{low:12,base:20,high:28},uncertainty:'Media',advanced:false,contributionMargin:35,capex:0,setupOpex:2,recurringOpex:1.2,subsidy:0,useCapex:false,useSetup:true,useRecurring:true,useSubsidy:false,usefulLife:5,residualPct:0,useResidual:false,start:1,ramp:2,terminal:true,financing:'cash',debtPct:0,debtRate:5.2,financingTerm:5,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'Datos RRHH y benchmark salarial',confidence:'Media'},{id:lid++,name:'Prevención de recalls y mejora de calidad',kpi:'K-S10',transmission:'risk_avoided',finVar:'F-23',perimeter:'P2',active:true,calcMethod:'economic',exposure:40,quantity:0,unitPrice:0,unitLabel:'nº',d:{low:18,base:30,high:42},uncertainty:'Media',advanced:false,contributionMargin:35,capex:8,setupOpex:1,recurringOpex:0.7,subsidy:0,useCapex:true,useSetup:true,useRecurring:true,useSubsidy:false,usefulLife:7,residualPct:5,useResidual:true,start:1,ramp:2,terminal:true,financing:'cash',debtPct:0,debtRate:5.2,financingTerm:5,risk:{probBefore:18,probAfter:8,eventCost:38,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:20},source:'Histórico de calidad y seguro',confidence:'Media'},{id:lid++,name:'Acceso a mercados emergentes por producto sostenible',kpi:'K-S14',transmission:'incremental_revenue',finVar:'F-28',perimeter:'P2',active:false,calcMethod:'economic',exposure:55,quantity:0,unitPrice:0,unitLabel:'ventas potenciales',d:{low:6,base:12,high:20},uncertainty:'Media',advanced:false,contributionMargin:42,capex:12,setupOpex:2,recurringOpex:1.5,subsidy:0,useCapex:true,useSetup:true,useRecurring:true,useSubsidy:false,usefulLife:8,residualPct:10,useResidual:true,start:2,ramp:3,terminal:true,financing:'cash',debtPct:0,debtRate:5.2,financingTerm:5,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'Plan comercial y benchmark de licitaciones',confidence:'Baja'}];STATE.kpidata={'K-E01':[540000,520000,505000],'K-S01':[14,13,12.5],'K-S10':[6,5,4],'K-S14':[2100000,2400000,2700000]};STATE.overlaps={};STATE.overlaps[overlapKey(1,3)]=10;STATE.scenario.geography='Unión Europea';applyMacroPreset('Base');STATE.monteCarlo.params={priceShockSigma:8,successMin:75,successMax:110,capexShockMin:-15,capexShockMax:50,waccSigma:0.8};STATE.page='results';render();}
+function resetAll(){if(confirm('¿Reiniciar todo el modelo?')){STATE=blankState();lid=1;uvid=1;ufid=1;pid=1;go('config');}}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',safeRender);}else{safeRender();}
+</script>
+</body>
+</html>
