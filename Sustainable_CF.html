@@ -1076,7 +1076,8 @@ const evDCF=aggNpvExTerminal+terminalPv+totalCapitalValue; // valor para la firm
 // Puente EV→equity: el VAN ya es a la firma; a fair value la deuda es neutral, así que el impacto en equity = EV impact. Deuda incremental se reporta como memo.
 const incrementalDebt=active.reduce((a,p)=>a+((p.l.useCapex===false?0:(p.l.capex||0))*(p.l.debtPct||0)/100),0);
 const equityImpact=evDCF; // impacto en valor para el accionista (memo: deuda incremental aparte)
-return {years,base,perLever,active,aggFcf,aggEbitda,aggDep,aggTax,aggResidual,aggTerminal,disc,aggNpv,aggNpvExTerminal,grossBenefit,investmentPv,totalCapitalValue,residualPv,terminalPv,finalEbitda,evMultiple,evDCF,equityImpact,incrementalDebt,wacc:effectiveWacc(mod),corpWacc:corporateWacc(),overlapFcf,overlapBenefit,overlapPv};}
+const overlapGroups=Object.entries(groupMap).filter(([,m])=>m.length>1).map(([key,members])=>({key,members}));
+return {years,base,perLever,active,aggFcf,aggEbitda,aggDep,aggTax,aggResidual,aggTerminal,disc,aggNpv,aggNpvExTerminal,grossBenefit,investmentPv,totalCapitalValue,residualPv,terminalPv,finalEbitda,evMultiple,evDCF,equityImpact,incrementalDebt,wacc:effectiveWacc(mod),corpWacc:corporateWacc(),overlapFcf,overlapBenefit,overlapPv,overlapGroups};}
 function irr(flows){let low=-0.95,high=5;function npv(r){return flows.reduce((a,c,i)=>a+c/Math.pow(1+r,i),0);}if(!flows.some(x=>x<0)||!flows.some(x=>x>0))return null;for(let i=0;i<80;i++){let mid=(low+high)/2;if(npv(mid)>0)low=mid;else high=mid;}return ((low+high)/2)*100;}
 function payback(flows){let cum=0;for(let i=0;i<flows.length;i++){cum+=flows[i];if(cum>=0)return i+1;}return null;}
 /* ============================ QC ============================ */
