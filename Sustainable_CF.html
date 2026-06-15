@@ -136,6 +136,7 @@ tr:hover td{background:var(--hover-row)}
 @media(max-width:1000px){.sidebar{position:relative;width:100%;height:auto}.main{margin-left:0}.summary-row,.grid4,.grid5{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.summary-row,.grid2,.grid3,.grid4,.grid5{grid-template-columns:1fr}.content{padding:20px}.header-bar{padding:12px 18px}}
 .print-only{display:none}
+.methodology h4{margin:1rem 0 .3rem;font-size:13px;color:var(--navy)}.methodology p{margin:.35rem 0;line-height:1.6}.methodology ul{margin:.4rem 0 .4rem 1.2rem;line-height:1.7}.methodology ol{margin:.4rem 0 .4rem 1.2rem;line-height:1.7}.methodology code{background:var(--surf-2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:12px;font-family:monospace}.methodology table{margin:.6rem 0;font-size:12px}.methodology table th{background:var(--surf-2);padding:6px 10px;text-align:left;border-bottom:2px solid var(--border)}.methodology table td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:top}
 @media print{.sidebar,.header-bar,.btn,.seg,.tabs{display:none!important}.main{margin:0}.content{max-width:100%;padding:0}.card{box-shadow:none;page-break-inside:avoid}.chart{height:280px}.print-only{display:block!important}}
 </style>
 </head>
@@ -1270,7 +1271,150 @@ function renderAudit(c){
 }
 function exportAuditCSV(){const rows=[['Palanca','Variable ASG','Variable financiera','Vía de transmisión','Base económica (€M)','Mejora base (%)','Confianza','Fuente','Banderas de calidad']];STATE.levers.forEach(l=>{normalizeLever(l);const v=KPIS[l.kpi],f=FIN_VARS[leverFinVar(l)]||FIN_VARS[v.fin]||{},t=getTransmission(l);rows.push([l.name,v.n,f.n,t.l,economicBase(l).toFixed(2),(l.d.base||0),l.confidence||'',l.source||'',leverQualityFlags(l).join('; ')||'OK']);});downloadBlob('sva_registro_supuestos.csv',csvFromRows(rows),'text/csv;charset=utf-8;');}
 /* ============================ METODOLOGÍA ============================ */
-function renderMethod(c){c.innerHTML=`<h2 class="section-title">16 · Metodología y limitaciones</h2><div class="card methodology"><h3>Lógica financiera</h3><p>El modelo calcula el impacto incremental de cada palanca frente a un caso sin palanca (contrafactual), bajo el mismo escenario macro. El resultado principal es el <b>flujo de caja libre incremental después de impuestos, descontado, y sin valor terminal</b>.</p><h3>Separación ASG → palanca → vía financiera</h3><p>Las variables ASG son neutras: describen <b>qué cambia</b> (MWh, tCO₂e, rotación, accidentes, proveedores auditados). La monetización se define en cada <b>palanca</b>, seleccionando una vía de transmisión financiera y una partida financiera afectada. Así, una misma variable —por ejemplo emisiones— puede monetizarse como carbon tax evitado, riesgo regulatorio evitado, ingreso protegido o mejora de financiación.</p><h3>Vías de transmisión financiera</h3><ul><li><b>Reducción de coste operativo recurrente:</b> menor consumo, coste unitario o ineficiencia.</li><li><b>Coste regulatorio/fiscal evitado:</b> carbon tax, tasas, cánones, RAP, vertedero.</li><li><b>Riesgo evitado / pérdida esperada:</b> probabilidad × severidad × exposición.</li><li><b>Ingreso incremental:</b> nuevas ventas por producto, mercado, cliente o premium price.</li><li><b>Ingreso protegido:</b> ventas o contratos defendidos frente a pérdida o exclusión.</li><li><b>Productividad / capacidad liberada:</b> horas, días, eventos o capacidad recuperada.</li><li><b>CapEx evitado, diferido o incremental:</b> inversión base frente a inversión con palanca.</li><li><b>Valor de activo / deterioro evitado:</b> impairments, stranded assets o valor residual protegido.</li><li><b>Financiación / coste de capital:</b> spread, seguro, WACC, covenants o financiación sostenible.</li><li><b>Incentivos, subvenciones o beneficios fiscales:</b> grants, tax credits o deducciones.</li></ul><h3>Coste de capital</h3><p>El WACC puede introducirse directamente o calcularse por build-up (Ke·E/V + Kd·(1−t)·D/V). Cada palanca se descuenta a una <b>tasa ajustada por riesgo</b>: el WACC corporativo más una prima según la confianza declarada de la palanca.</p><h3>Base creciente</h3><p>La base sobre la que actúa cada palanca crece año a año con el crecimiento de ingresos del escenario (motor de volumen) y con el índice de precios del escenario (motor de precio), con un ajuste opcional de intensidad. En palancas de ingresos, el crecimiento de volumen y el ajuste de precio están separados para evitar doble conteo.</p><h3>Valor terminal y valoración</h3><p><b>El valor terminal está desactivado por defecto.</b> Si se activa, usa crecimiento perpetuo g=0 para ahorros de coste y se reporta como memorándum. La cifra de decisión es el DCF de los flujos del horizonte; múltiplos y terminal son referencias de sensibilidad, no caso base.</p><h3>Limitaciones</h3><ul><li>Las elasticidades son supuestos del usuario, no regresiones.</li><li>El solapamiento es por pares; con tres o más palancas sobre la misma línea puede requerir criterio.</li><li>Los vectores de escenario que no cubren todo el horizonte repiten su último valor.</li><li>La línea base no recalcula automáticamente sus sublíneas; el impacto se reporta incremental.</li><li>El modelo es cliente-side: no guarda datos fuera del navegador salvo exportación manual.</li></ul></div>`;}
+function renderMethod(c){
+const sections=[
+{id:'mth-logic',title:'1. Lógica financiera y contrafactual',body:`
+<p>El modelo calcula el impacto incremental de cada palanca frente a un caso base sin palanca (contrafactual), bajo el mismo escenario macroeconómico y sectorial. El contrafactual no es la situación actual de la empresa, sino la proyección de la empresa <em>sin implementar la palanca</em> en el mismo entorno.</p>
+<p>La métrica principal es el <b>flujo de caja libre incremental después de impuestos, descontado al coste de capital ajustado por riesgo de la palanca, y sin valor terminal</b> (salvo activación explícita). El resultado se reporta como VAN incremental, FCF incremental acumulado y TIR.</p>
+<p>El beneficio bruto de cada palanca se calcula sobre la base económica del año correspondiente (que crece con precios y volumen), se multiplica por el porcentaje de mejora y por los factores de implantación, y se neta de los costes asociados a la palanca (CapEx vía amortización, OpEx de arranque y recurrente). Sobre el margen incremental se aplica el tipo impositivo efectivo para obtener el flujo neto.</p>`},
+{id:'mth-asg',title:'2. Separación ASG → palanca → vía financiera',body:`
+<p>Las variables ASG son neutras: describen <b>qué cambia físicamente</b> (MWh consumidos, tCO₂e emitidas, tasa de rotación, accidentes, proveedores auditados). No tienen valor intrínseco en el modelo.</p>
+<p>La monetización se define en cada <b>palanca</b>, que selecciona:</p>
+<ol>
+  <li>La <b>variable ASG</b> que mejora (KPI de seguimiento).</li>
+  <li>La <b>vía de transmisión financiera</b> (cómo se convierte en dinero).</li>
+  <li>La <b>partida financiera afectada</b> (la línea del P&amp;L o balance que se mueve).</li>
+</ol>
+<p>Esto permite que la misma variable —por ejemplo, emisiones de CO₂— se monetice de maneras distintas: como carbon tax evitado, riesgo regulatorio evitado, ingreso protegido en licitaciones verdes, o mejora del coste de financiación. Cada vía requiere su propio supuesto y fuente.</p>`},
+{id:'mth-transmission',title:'3. Vías de transmisión financiera',body:`
+<table>
+<thead><tr><th>Vía</th><th>Lógica</th><th>Ejemplo</th></tr></thead>
+<tbody>
+<tr><td><b>Reducción de coste operativo</b></td><td>Menor consumo, coste unitario o ineficiencia sobre una base de gasto afectado</td><td>Ahorro energético, reducción mermas, menor scrap</td></tr>
+<tr><td><b>Coste regulatorio / fiscal evitado</b></td><td>Reducción de exposición a tasas, cánones, carbon pricing o sanciones</td><td>Carbon tax, CBAM, cánon de vertedero, RAP</td></tr>
+<tr><td><b>Riesgo evitado / pérdida esperada</b></td><td>Reducción de probabilidad × severidad de un evento adverso</td><td>Recall, multa regulatoria, exclusión de licitación</td></tr>
+<tr><td><b>Ingreso incremental</b></td><td>Nuevas ventas generadas por la palanca (producto, mercado, cliente o premium)</td><td>Línea eco-premium, acceso a compra pública verde</td></tr>
+<tr><td><b>Ingreso protegido</b></td><td>Ventas o contratos que se perderían sin la palanca (churn evitado)</td><td>Contratos con cláusulas ESG, clientes en riesgo de rotación</td></tr>
+<tr><td><b>Productividad / capacidad liberada</b></td><td>Reducción de frecuencia × coste unitario de un evento recurrente, o capacidad productiva recuperada</td><td>Reducción de rotación, absentismo, paradas de línea</td></tr>
+<tr><td><b>CapEx evitado o incremental</b></td><td>Diferencia entre CapEx base y CapEx con la palanca</td><td>Modernización vs. sustitución completa, activos retirados</td></tr>
+<tr><td><b>Valor de activo / deterioro evitado</b></td><td>Impairments o pérdida de valor residual que la palanca evita</td><td>Stranded assets, exposición climática de inmuebles</td></tr>
+<tr><td><b>Financiación / coste de capital</b></td><td>Reducción de spread, mejora de covenants o acceso a financiación verde</td><td>Bono sostenible, crédito con ratchet ESG</td></tr>
+<tr><td><b>Incentivos y beneficios fiscales</b></td><td>Grants, deducciones o créditos fiscales ligados a la inversión</td><td>ITC, deducciones I+D+i, subvenciones FEDER</td></tr>
+</tbody>
+</table>`},
+{id:'mth-calcmethod',title:'4. Métodos de cálculo de la base económica',body:`
+<p>Para cada vía de transmisión el modelo ofrece uno o varios métodos de cálculo de la base económica de la palanca:</p>
+<h4>Método económico (por defecto en la mayoría de vías)</h4>
+<p><code>Base económica = Exposición (€M)</code> — importe anual directamente afectado por la palanca (gasto energético, ingresos en riesgo, CapEx base, etc.). El beneficio bruto es:</p>
+<p style="padding-left:1.2rem"><code>Beneficio bruto = Exposición × % mejora</code></p>
+<h4>Método físico (disponible en reducción de coste y coste regulatorio evitado)</h4>
+<p>Útil cuando conoces mejor la unidad física que el importe monetario:</p>
+<p style="padding-left:1.2rem"><code>Base económica = Cantidad (ud físicas) × Precio unitario (€/ud)</code></p>
+<p>El precio unitario puede estar indexado al escenario de precios (energía, carbono, materiales).</p>
+<h4>Método frecuencia (disponible en productividad / capacidad)</h4>
+<p>Para eventos recurrentes con un coste unitario identificable:</p>
+<p style="padding-left:1.2rem"><code>Base económica = Volumen (personas/unidades) × Tasa del evento antes (%) × Coste unitario del evento (€)</code></p>
+<p style="padding-left:1.2rem"><code>Beneficio bruto = Base × (Tasa antes − Tasa después) / Tasa antes</code></p>
+<p>Típico para rotación de empleados (volumen = plantilla, tasa = % rotación, coste unitario = coste de sustitución), absentismo o paradas de línea.</p>`},
+{id:'mth-rampfade',title:'5. Ramp-up, implantación y fade-out',body:`
+<p>El beneficio de una palanca rara vez se materializa al 100% desde el primer año. El modelo incorpora tres factores de dinámica temporal:</p>
+<h4>Retraso de inicio</h4>
+<p>La palanca puede empezar a partir del año 1. El escenario de ejecución añade un retraso adicional en meses (retraso de implantación global) que se aplica a todas las palancas.</p>
+<h4>Curva de ramp-up</h4>
+<p>Una vez que la palanca está activa, el beneficio crece linealmente hasta alcanzar el 100% en <em>N</em> años de ramp. En el año de inicio el beneficio es <code>1/N</code>, en el segundo <code>2/N</code>, etc.</p>
+<h4>Fade-out (deterioro de ventaja)</h4>
+<p>Si se activa, la ventaja competitiva generada por la palanca se erosiona linealmente a lo largo de los años configurados, una vez alcanzado el pleno efecto. En el año <em>k</em> de fade, el multiplicador es <code>max(0, 1 − k / años_fade)</code>. Sirve para palancas cuya ventaja tiende a igualarse por competencia o cambio tecnológico.</p>
+<p>La tasa de éxito y la adopción del escenario de ejecución se aplican como multiplicadores adicionales sobre el beneficio de cada año, independientemente del ramp.</p>`},
+{id:'mth-wacc',title:'6. Coste de capital, rating ASG y prima por riesgo',body:`
+<h4>WACC corporativo</h4>
+<p>Se puede introducir directamente o calcularse por build-up:</p>
+<p style="padding-left:1.2rem"><code>WACC = Ke × (E/V) + Kd × (1 − t) × (D/V)</code></p>
+<p>donde Ke es el coste del equity, Kd el coste de la deuda antes de impuestos, t el tipo fiscal, y E/V y D/V los pesos de capital.</p>
+<h4>Ajuste por rating ASG</h4>
+<p>El rating ASG de la empresa ajusta el WACC corporativo:</p>
+<table style="width:auto">
+<thead><tr><th>Rating</th><th>Ajuste (pp)</th><th>Lectura</th></tr></thead>
+<tbody>
+<tr><td><b>A</b></td><td>−0,25 pp</td><td>Excelente gestión ESG → menor prima de riesgo</td></tr>
+<tr><td><b>B</b></td><td>0 pp</td><td>Referencia del sector</td></tr>
+<tr><td><b>C</b></td><td>+0,25 pp</td><td>Gestión por debajo del sector</td></tr>
+<tr><td><b>D</b></td><td>+0,50 pp</td><td>Rezagado → mayor coste de financiación percibido</td></tr>
+</tbody>
+</table>
+<h4>Prima por riesgo de palanca</h4>
+<p>Cada palanca se descuenta a su propia tasa ajustada por riesgo, que añade al WACC corporativo una prima según la confianza declarada del supuesto:</p>
+<table style="width:auto">
+<thead><tr><th>Confianza</th><th>Prima adicional</th></tr></thead>
+<tbody>
+<tr><td>Alta</td><td>0 pp (configurable)</td></tr>
+<tr><td>Media</td><td>+1,5 pp (configurable)</td></tr>
+<tr><td>Baja</td><td>+3,5 pp (configurable)</td></tr>
+</tbody>
+</table>
+<p>Esto refleja la incertidumbre del supuesto en la tasa de descuento, no en el importe: una palanca con supuesto de baja confianza vale menos aunque el beneficio bruto sea igual.</p>`},
+{id:'mth-risk',title:'7. Riesgo evitado y coste de inacción',body:`
+<p>Las palancas de tipo <b>riesgo evitado</b> modelizan la reducción de una pérdida esperada:</p>
+<p style="padding-left:1.2rem"><code>Pérdida esperada antes = P(evento antes) × Coste del evento × (1 − Cobertura de seguro)</code></p>
+<p style="padding-left:1.2rem"><code>Pérdida esperada después = P(evento después) × Coste del evento × (1 − Cobertura de seguro)</code></p>
+<p style="padding-left:1.2rem"><code>Beneficio bruto = Pérdida esperada antes − Pérdida esperada después</code></p>
+<p>El coste del evento se modela como distribución triangular (mínimo / base / máximo) para la simulación Monte Carlo. Las probabilidades representan la frecuencia anual esperada del evento adverso.</p>
+<p>La suma del VAN de todas las palancas de riesgo evitado define el <b>coste de inacción</b>: el valor que se destruye por defecto si la empresa no actúa. Es el argumento defensivo ante un comité: aun si el caso de creación de valor fuese ajustado, ese importe se pierde sin hacer nada.</p>`},
+{id:'mth-montecarlo',title:'8. Simulación Monte Carlo',body:`
+<p>El modelo ejecuta una simulación de Monte Carlo sobre el VAN agregado con las siguientes fuentes de incertidumbre:</p>
+<table>
+<thead><tr><th>Variable</th><th>Distribución</th><th>Parámetros por defecto</th></tr></thead>
+<tbody>
+<tr><td>Shock de precios de commodities</td><td>Gaussiana</td><td>σ = 8 pp sobre los crecimientos del escenario</td></tr>
+<tr><td>Multiplicador de éxito / adopción</td><td>Uniforme</td><td>[75%, 110%] sobre la tasa de éxito del escenario</td></tr>
+<tr><td>Shock de CapEx</td><td>Uniforme</td><td>[−15%, +50%] sobre la inversión de cada palanca</td></tr>
+<tr><td>Shock de WACC</td><td>Gaussiana</td><td>σ = 0,8 pp sobre el WACC ajustado</td></tr>
+<tr><td>Severidad de eventos de riesgo</td><td>Triangular</td><td>Mín / Base / Máx definidos por palanca</td></tr>
+</tbody>
+</table>
+<p>Por defecto se ejecutan <b>750 iteraciones</b>. Cada iteración calcula el VAN completo del modelo con los parámetros perturbados. El resultado es la distribución del VAN agregado, del que se reporta la mediana, el intervalo de confianza al 90% (percentiles 5 y 95) y la probabilidad de que el VAN sea positivo.</p>
+<p>El generador de números aleatorios usa semilla fija (42 por defecto) para garantizar reproducibilidad entre sesiones.</p>`},
+{id:'mth-overlaps',title:'9. Solapamientos entre palancas',body:`
+<p>Cuando dos o más palancas actúan sobre la misma partida financiera, sus beneficios no son perfectamente aditivos. El modelo aplica dos niveles de corrección:</p>
+<h4>Corrección por pares</h4>
+<p>Para cada par de palancas (A, B) se define un porcentaje de solapamiento <em>s</em> (0–100%). La reducción aplicada es:</p>
+<p style="padding-left:1.2rem"><code>Reducción = s% × min(Beneficio bruto A, Beneficio bruto B)</code></p>
+<p>Se toma el mínimo de los dos beneficios para no reducir más de lo que aporta la palanca menor.</p>
+<h4>Corrección adicional de grupo (≥ 3 palancas)</h4>
+<p>Cuando tres o más palancas comparten el mismo grupo de solapamiento, la corrección por pares puede no capturar el triple o cuádruple cómputo. El modelo aplica una reducción adicional conservadora:</p>
+<p style="padding-left:1.2rem"><code>Reducción extra = 10% × beneficio bruto del miembro menor del grupo</code></p>
+<p>Esta reducción se acumula a la corrección por pares y se suma al ajuste total antes del descuento.</p>`},
+{id:'mth-capital',title:'10. Asignación de capital y cartera óptima',body:`
+<p>La pestaña de asignación de capital implementa el algoritmo de la <b>mochila fraccionaria por índice de rentabilidad</b>:</p>
+<p style="padding-left:1.2rem"><code>PI (Índice de rentabilidad) = VAN / Inversión en valor presente</code></p>
+<p>Las palancas se ordenan de mayor a menor PI. Con un presupuesto dado, se seleccionan en ese orden hasta agotar el presupuesto. Esta heurística maximiza el VAN total cuando las palancas son indivisibles y el presupuesto es la única restricción.</p>
+<p>Las palancas con VAN negativo a su tasa ajustada por riesgo no entran en la cartera aunque sobre presupuesto, ya que destruirían valor. El capital sin asignar se reporta explícitamente.</p>
+<p>El análisis puede ejecutarse en banda Bajo / Base / Alto para ver cómo cambia la composición de la cartera óptima bajo distintos escenarios.</p>`},
+{id:'mth-terminal',title:'11. Valor terminal y valor residual',body:`
+<h4>Valor terminal de palancas</h4>
+<p>Por defecto <b>desactivado</b>. Si se activa para una palanca, usa Gordon Growth con g = 0 para ahorros de coste:</p>
+<p style="padding-left:1.2rem"><code>Valor terminal = FCF del último año / WACC de la palanca</code></p>
+<p>Se reporta como memorándum separado del DCF de horizonte finito. No se incluye en la cifra de decisión principal para evitar que el valor terminal domine el análisis en horizontes cortos.</p>
+<h4>Valor residual de inversiones</h4>
+<p>Algunas palancas tienen activos con vida útil que supera el horizonte del modelo (p.ej. instalaciones energéticas). El valor residual recupera al final del horizonte la fracción no amortizada del CapEx neto:</p>
+<p style="padding-left:1.2rem"><code>Valor residual = CapEx neto × % residual configurado</code></p>
+<p>Se añade como flujo positivo en el último año del horizonte y se descuenta igual que el resto de flujos.</p>`},
+{id:'mth-limitations',title:'12. Limitaciones y sesgos conocidos',body:`
+<ul>
+<li><b>Los supuestos de mejora son del usuario, no econométricos.</b> El modelo no valida si el porcentaje de mejora declarado es alcanzable; esa responsabilidad recae en la fuente y la confianza declarada.</li>
+<li><b>El solapamiento es aproximado.</b> La corrección por pares + grupo es una heurística conservadora, no un modelo de correlación completo. Con muchas palancas sobre la misma línea, el solapamiento real puede ser mayor.</li>
+<li><b>La línea base no se desagrega automáticamente.</b> El impacto se reporta como incremental sobre la partida financiera; el modelo no recalcula sublíneas ni verifica consistencia interna del P&L base.</li>
+<li><b>El fade-out es lineal.</b> La erosión de ventaja competitiva puede ser más abrupta o más gradual en la realidad; la parametrización lineal es una simplificación.</li>
+<li><b>El Monte Carlo asume independencia entre shocks.</b> En la práctica, un shock de precios energéticos suele correlacionar con inflación de materiales y presión sobre márgenes; el modelo los trata como independientes.</li>
+<li><b>No modela riesgo de ejecución por palanca.</b> La tasa de éxito y adopción son parámetros globales del escenario de ejecución, no específicos de cada palanca.</li>
+<li><b>Modelo cliente-side.</b> Los datos no se persisten fuera del navegador. Toda la información se pierde al cerrar la pestaña salvo exportación manual (JSON o impresión PDF).</li>
+<li><b>Horizontes largos amplifican la incertidumbre de supuestos.</b> Para horizontes superiores a 7 años, los vectores de escenario repiten el último valor, lo que equivale a asumir estabilidad; considerar la sensibilidad explícitamente.</li>
+</ul>`}
+];
+const navHtml=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">${sections.map(s=>`<a href="#${s.id}" style="font-size:12px;padding:4px 10px;border-radius:20px;background:var(--surf-2);color:var(--text);text-decoration:none;border:1px solid var(--border)">${s.title.split('.')[0].trim()}</a>`).join('')}</div>`;
+c.innerHTML=`<h2 class="section-title">16 · Metodología y limitaciones</h2>
+<p class="section-lead">Descripción completa de la lógica de cálculo, los métodos disponibles y las limitaciones del modelo. Útil para validación interna, revisión de asunciones y presentación a comités de inversión o auditoría.</p>
+${navHtml}
+${sections.map(s=>`<div class="card methodology" id="${s.id}"><h3 style="margin-top:0">${s.title}</h3>${s.body}</div>`).join('')}`;}
 /* ============================ EJEMPLO / RESET ============================ */
 function loadExample(){STATE=blankState();lid=1;pid=1;STATE.company={name:'Farmacéutica Demo, S.A.',sector:'PH',asg:'B',revenue:1200,model:'Fabricante integrado',geography:'Unión Europea',baseYear:2025,horizon:7,currency:'€M'};STATE.perimeters=[{id:'P0',name:'Toda la compañía',type:'Compañía',geography:'Global',shareRevenue:100,description:'Perímetro completo'},{id:'P1',name:'Plantas Europa',type:'Unidad de negocio',geography:'Unión Europea',shareRevenue:65,description:'Centros productivos europeos'},{id:'P2',name:'Línea productos hospitalarios',type:'Producto',geography:'Global',shareRevenue:35,description:'Productos con mayor exposición a compras públicas'}];STATE.fin={revenue:[1050,1120,1200],cogs:[472,498,540],sga:[231,246,264],da:[63,67,72],ebitdaAdj:[0,4,5],extraordinary:[6,0,3],capex:[74,78,84],energyCost:[55,58,62],carbonCost:[5,6,7],materialCost:[180,195,210],personnelCost:[290,310,330],waterWasteCost:[12,13,14],qualityCost:[22,25,28],employees:[3200,3300,3400],netFinancial:[18,19,20],wc:[210,225,240],netDebt:[300,310,320],equity:[600,640,690],taxRate:25,wacc:8.5,costDebt:5.2,costEquity:10.5,terminalGrowth:1.5,ebitdaMultiple:9.0,baseEV:4200,variableCostPct:65,waccMode:'buildup',debtWeight:35,terminalDefault:false,fadeYears:0,riskPremium:{Alta:0,Media:1.5,Baja:3.5}};STATE.levers=[{id:lid++,name:'Programa de eficiencia energética',kpi:'K-E01',transmission:'opex_reduction',finVar:'F-01',perimeter:'P1',active:true,calcMethod:'economic',exposure:62,quantity:505000,unitPrice:122,unitLabel:'MWh',d:{low:9,base:15,high:21},uncertainty:'Media',advanced:false,contributionMargin:35,capex:25,setupOpex:1.5,recurringOpex:0.8,subsidy:2,useCapex:true,useSetup:true,useRecurring:true,useSubsidy:true,usefulLife:10,residualPct:15,useResidual:true,start:1,ramp:3,terminal:true,financing:'debt',debtPct:50,debtRate:5.5,financingTerm:6,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'Auditoría energética interna',confidence:'Alta'},{id:lid++,name:'Retención de talento clave',kpi:'K-S01',transmission:'productivity_capacity',finVar:'F-12',perimeter:'P0',active:true,calcMethod:'frequency',exposure:18,freqVolume:3400,freqRateBefore:12.5,freqRateAfter:10,freqUnitCost:25000,quantity:420,unitPrice:43000,unitLabel:'empleados',d:{low:12,base:20,high:28},uncertainty:'Media',advanced:false,contributionMargin:35,capex:0,setupOpex:2,recurringOpex:1.2,subsidy:0,useCapex:false,useSetup:true,useRecurring:true,useSubsidy:false,usefulLife:5,residualPct:0,useResidual:false,start:1,ramp:2,terminal:true,financing:'cash',debtPct:0,debtRate:5.2,financingTerm:5,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'Datos RRHH y benchmark salarial',confidence:'Media'},{id:lid++,name:'Prevención de recalls y mejora de calidad',kpi:'K-S10',transmission:'risk_avoided',finVar:'F-23',perimeter:'P2',active:true,calcMethod:'economic',exposure:40,quantity:0,unitPrice:0,unitLabel:'nº',d:{low:18,base:30,high:42},uncertainty:'Media',advanced:false,contributionMargin:35,capex:8,setupOpex:1,recurringOpex:0.7,subsidy:0,useCapex:true,useSetup:true,useRecurring:true,useSubsidy:false,usefulLife:7,residualPct:5,useResidual:true,start:1,ramp:2,terminal:true,financing:'cash',debtPct:0,debtRate:5.2,financingTerm:5,risk:{probBefore:18,probAfter:8,eventCost:38,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:20},source:'Histórico de calidad y seguro',confidence:'Media'},{id:lid++,name:'Acceso a mercados emergentes por producto sostenible',kpi:'K-S14',transmission:'incremental_revenue',finVar:'F-28',perimeter:'P2',active:false,calcMethod:'economic',exposure:55,quantity:0,unitPrice:0,unitLabel:'ventas potenciales',d:{low:6,base:12,high:20},uncertainty:'Media',advanced:false,contributionMargin:42,capex:12,setupOpex:2,recurringOpex:1.5,subsidy:0,useCapex:true,useSetup:true,useRecurring:true,useSubsidy:false,usefulLife:8,residualPct:10,useResidual:true,start:2,ramp:3,terminal:true,financing:'cash',debtPct:0,debtRate:5.2,financingTerm:5,risk:{probBefore:20,probAfter:10,eventCost:0,severityLow:70,severityBase:100,severityHigh:150,coveredByInsurance:0},source:'Plan comercial y benchmark de licitaciones',confidence:'Baja'}];STATE.kpidata={'K-E01':[540000,520000,505000],'K-S01':[14,13,12.5],'K-S10':[6,5,4],'K-S14':[2100000,2400000,2700000]};STATE.overlaps={};STATE.overlaps[overlapKey(1,3)]=10;STATE.scenario.geography='Unión Europea';applyMacroPreset('Base');STATE.monteCarlo.params={priceShockSigma:8,successMin:75,successMax:110,capexShockMin:-15,capexShockMax:50,waccSigma:0.8};STATE.page='results';render();}
 function resetAll(){if(confirm('¿Reiniciar todo el modelo?')){STATE=blankState();lid=1;uvid=1;ufid=1;pid=1;go('config');}}
