@@ -1122,38 +1122,159 @@ async function printResults(){
 }
 function drawBridge(id,R){const investment=-R.investmentPv,opex=R.active.reduce((a,p)=>a+p.grossNpv,0),overlap=-(R.overlapPv||0),terminal=R.terminalPv||0,residual=R.residualPv||0,capital=R.totalCapitalValue,total=R.evDCF;Plotly.newPlot(id,[{type:'waterfall',orientation:'v',measure:['relative','relative','relative','relative','relative','total'],x:['Beneficio operativo','Inversión y costes','Solapamientos','Residual','Terminal + capital','Valor de empresa'],y:[opex,investment,overlap,residual,terminal+capital,total],connector:{line:{color:'rgba(90,101,115,.35)'}}}],{margin:{l:60,r:20,t:10,b:40},font:{family:'Inter',size:12},yaxis:{title:'€M',gridcolor:'rgba(12,35,60,.06)'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
 /* ============================ SENSIBILIDAD Y MONTE CARLO ============================ */
-function renderSens(c){const R=compute();c.innerHTML=`<h2 class="section-title">12 · Sensibilidad y Monte Carlo</h2><p class="section-lead">Evalúa qué supuestos mueven más el valor y mide la distribución de posibles resultados.</p>
-${formatNote('Las iteraciones y la semilla de Monte Carlo se introducen como números enteros, sin separadores si es posible. Ejemplo: <code>750</code>.')}
-<div class="card"><h3>Análisis de sensibilidad</h3><div class="note">El gráfico compara el valor actual neto de la cartera activa con movimientos adversos y favorables de los principales supuestos.</div><div id="ch_tornado" class="chart"></div><div id="ch_heat" class="chart"></div></div>
-<div class="card"><h3>Simulación Monte Carlo</h3>
-<div class="grid4"><div>${label('montecarlo','Número de iteraciones')}<input id="mc_iter" type="number" value="${STATE.monteCarlo.iterations}"></div><div>${label('montecarlo','Semilla aleatoria')}<input id="mc_seed" type="number" value="${STATE.monteCarlo.seed}"></div><div style="align-self:end"><button class="btn primary" onclick="runMonteCarlo()">Ejecutar simulación</button></div></div>
-<div class="step-block" style="margin-top:14px"><h4>Distribuciones de incertidumbre <span class="muted" style="font-weight:400;font-size:12px">— ajusta los rangos de cada shock</span></h4>
-<div class="grid4">
-  <div>${label('uncertainty','Shock de precio (σ, %)')}<input type="number" step="0.5" value="${STATE.monteCarlo.params.priceShockSigma}" onchange="STATE.monteCarlo.params.priceShockSigma=num(this.value)"><div class="hint">Desviación típica del shock común a energía y carbono. Ej.: 8 → ±8% 1σ.</div></div>
-  <div>${label('uncertainty','Éxito implantación: mín (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.successMin}" onchange="STATE.monteCarlo.params.successMin=num(this.value)"></div>
-  <div>${label('uncertainty','Éxito implantación: máx (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.successMax}" onchange="STATE.monteCarlo.params.successMax=num(this.value)"><div class="hint">Uniform[mín%,máx%] sobre el factor de éxito (100% = sin penalización).</div></div>
-  <div>${label('uncertainty','Sobrecoste inversión: mín (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.capexShockMin}" onchange="STATE.monteCarlo.params.capexShockMin=num(this.value)"></div>
-  <div>${label('uncertainty','Sobrecoste inversión: máx (%)')}<input type="number" step="1" value="${STATE.monteCarlo.params.capexShockMax}" onchange="STATE.monteCarlo.params.capexShockMax=num(this.value)"><div class="hint">Uniform[mín%,máx%] sobre el CapEx de cada palanca. Negativo = ahorro.</div></div>
-  <div>${label('wacc','WACC shock (σ, pp)')}<input type="number" step="0.1" value="${STATE.monteCarlo.params.waccSigma}" onchange="STATE.monteCarlo.params.waccSigma=num(this.value)"><div class="hint">Desviación típica del shock sobre el WACC. Ej.: 0,8 → ±0,8 pp 1σ.</div></div>
-</div></div>
-<div id="mc_stats" style="margin-top:14px"></div><div id="ch_mc" class="chart"></div></div>`;drawSensitivity(R);if(STATE.monteCarlo.last)renderMcStats(STATE.monteCarlo.last);}
-function drawSensitivity(R){const base=R.aggNpv;const tests=[['Coste medio del capital',{waccShock:1},{waccShock:-1}],['Precio energía',{priceShock:-0.10},{priceShock:0.10}],['Crecimiento ingresos',{revGrowthShock:-1},{revGrowthShock:1}],['Coste de inversión',{capexShock:0.20},{capexShock:-0.20}],['Éxito de ejecución',{successMult:0.8},{successMult:1.1}]];const rows=tests.map(([name,low,high])=>{const lo=compute(RESULTS_VIEW.band,low).aggNpv-base,hi=compute(RESULTS_VIEW.band,high).aggNpv-base;return {name,lo,hi};}).sort((a,b)=>Math.abs(b.hi-b.lo)-Math.abs(a.hi-a.lo));Plotly.newPlot('ch_tornado',[{type:'bar',orientation:'h',name:'Escenario adverso',x:rows.map(r=>r.lo),y:rows.map(r=>r.name)},{type:'bar',orientation:'h',name:'Escenario favorable',x:rows.map(r=>r.hi),y:rows.map(r=>r.name)}],{barmode:'overlay',margin:{l:170,r:20,t:10,b:35},font:{family:'Inter',size:12},xaxis:{title:'Cambio en VAN vs base (€M)',zeroline:true,gridcolor:'rgba(12,35,60,.06)'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});const xs=[-2,-1,0,1,2],ys=[-20,-10,0,10,20],z=ys.map(c=>xs.map(w=>compute(RESULTS_VIEW.band,{waccShock:w,capexShock:c/100}).aggNpv));Plotly.newPlot('ch_heat',[{type:'heatmap',x:xs.map(x=>`${x>0?'+':''}${x} pp WACC`),y:ys.map(y=>`${y>0?'+':''}${y}% inversión`),z,colorscale:'RdYlGn'}],{margin:{l:100,r:20,t:20,b:50},font:{family:'Inter',size:12},title:{text:'Mapa de sensibilidad: WACC vs inversión',font:{size:13}},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
+function renderSens(c){const R=compute();
+c.innerHTML=`<h2 class="section-title">12 · Sensibilidad y Monte Carlo</h2>
+<p class="section-lead">Dos análisis complementarios: <b>Sección A</b> identifica qué supuestos mueven más el valor (útil para priorizar qué validar primero); <b>Sección B</b> combina toda la incertidumbre simultáneamente para medir la distribución completa de posibles resultados.</p>
+
+<div style="display:flex;align-items:center;gap:10px;margin:24px 0 6px">
+  <div style="width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">A</div>
+  <h3 style="margin:0;font-size:16px;color:var(--navy)">¿Qué supuestos mueven más el valor?</h3>
+</div>
+<p style="color:var(--muted);font-size:13px;margin:0 0 12px 40px">Cada barra muestra cuánto cambiaría el VAN si ese supuesto se mueve a su valor adverso o favorable, manteniendo el resto fijo. Las palancas usan sus bandas Bajo/Alto reales; las variables macro usan movimientos de referencia.</p>
+
+<div class="card"><h3>Tornado de sensibilidad</h3><div id="ch_tornado" class="chart" style="height:380px"></div></div>
+<div class="card"><h3>Contribución de cada palanca al VAN</h3>
+<div class="tbl-wrap"><table><thead><tr><th>Palanca</th><th class="right">VAN base</th><th class="right">% del total</th><th class="right">Banda baja</th><th class="right">Banda alta</th><th class="right">Rango</th></tr></thead><tbody>
+${(()=>{const Rlo=compute('low'),Rhi=compute('high'),tot=R.aggNpvExTerminal||1;
+return R.active.map(p=>{const lo=Rlo.perLever.find(x=>x.l.id===p.l.id)?.npv??0,hi=Rhi.perLever.find(x=>x.l.id===p.l.id)?.npv??0;
+return `<tr><td><b>${esc(p.l.name)}</b><div class="hint">${esc(STATE.perimeters.find(x=>x.id===p.l.perimeter)?.name||'')}</div></td><td class="right">${fmt(p.npv)}</td><td class="right">${(p.npv/tot*100).toFixed(1)}%</td><td class="right" style="color:var(--red)">${fmt(lo)}</td><td class="right" style="color:var(--green)">${fmt(hi)}</td><td class="right strong">${fmt(hi-lo)}</td></tr>`;}).join('');})()}
+</tbody></table></div></div>
+
+<div style="display:flex;align-items:center;gap:10px;margin:28px 0 6px">
+  <div style="width:30px;height:30px;border-radius:50%;background:var(--cobalt);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">B</div>
+  <h3 style="margin:0;font-size:16px;color:var(--navy)">¿Cuál es la distribución completa de posibles resultados?</h3>
+</div>
+<p style="color:var(--muted);font-size:13px;margin:0 0 12px 40px">La simulación perturba simultáneamente todas las fuentes de incertidumbre en cada iteración y genera la distribución del VAN. Muestra qué tan robusto es el caso base.</p>
+
+<div class="card"><h3>Parámetros de la simulación</h3>
+<div class="grid4" style="margin-bottom:16px">
+  <div>${label('montecarlo','Iteraciones')}<input id="mc_iter" type="number" value="${STATE.monteCarlo.iterations}"><div class="hint">750 es suficiente para P5–P95 estables.</div></div>
+  <div>${label('montecarlo','Semilla aleatoria')}<input id="mc_seed" type="number" value="${STATE.monteCarlo.seed}"><div class="hint">Misma semilla = mismos resultados entre sesiones.</div></div>
+  <div style="grid-column:span 2;align-self:end"><button class="btn primary" onclick="runMonteCarlo()" style="width:100%">▶ Ejecutar simulación</button></div>
+</div>
+<h4 style="margin:0 0 8px">Fuentes de incertidumbre configurables</h4>
+<div class="tbl-wrap"><table><thead><tr><th>Variable</th><th>Distribución</th><th>Parámetros</th><th>En la práctica significa…</th></tr></thead><tbody>
+<tr><td><b>Mejora de cada palanca</b></td><td>Triangular</td><td>Mín=Bajo · Moda=Base · Máx=Alto</td><td>Cada palanca varía dentro de su rango definido en el paso 6</td></tr>
+<tr><td><b>Precio energía y carbono</b></td><td>Gaussiana</td>
+  <td>σ = <input type="number" step="0.5" value="${STATE.monteCarlo.params.priceShockSigma}" onchange="STATE.monteCarlo.params.priceShockSigma=num(this.value)" style="width:55px"> %</td>
+  <td>En 2 de cada 3 iteraciones el precio varía ±${STATE.monteCarlo.params.priceShockSigma}% vs escenario base</td></tr>
+<tr><td><b>Éxito de implantación</b></td><td>Uniforme</td>
+  <td><input type="number" step="1" value="${STATE.monteCarlo.params.successMin}" onchange="STATE.monteCarlo.params.successMin=num(this.value)" style="width:50px"> % – <input type="number" step="1" value="${STATE.monteCarlo.params.successMax}" onchange="STATE.monteCarlo.params.successMax=num(this.value)" style="width:50px"> %</td>
+  <td>La adopción efectiva varía entre ${STATE.monteCarlo.params.successMin}% y ${STATE.monteCarlo.params.successMax}% de lo planificado</td></tr>
+<tr><td><b>Sobrecoste de inversión</b></td><td>Uniforme</td>
+  <td><input type="number" step="1" value="${STATE.monteCarlo.params.capexShockMin}" onchange="STATE.monteCarlo.params.capexShockMin=num(this.value)" style="width:50px"> % – <input type="number" step="1" value="${STATE.monteCarlo.params.capexShockMax}" onchange="STATE.monteCarlo.params.capexShockMax=num(this.value)" style="width:50px"> %</td>
+  <td>El CapEx real puede variar entre ${STATE.monteCarlo.params.capexShockMin}% y +${STATE.monteCarlo.params.capexShockMax}% del presupuesto</td></tr>
+<tr><td><b>Coste de capital (WACC)</b></td><td>Gaussiana</td>
+  <td>σ = <input type="number" step="0.1" value="${STATE.monteCarlo.params.waccSigma}" onchange="STATE.monteCarlo.params.waccSigma=num(this.value)" style="width:55px"> pp</td>
+  <td>En 2 de cada 3 iteraciones el WACC varía ±${STATE.monteCarlo.params.waccSigma} pp respecto al base</td></tr>
+</tbody></table></div></div>
+<div id="mc_results">${STATE.monteCarlo.last?'':'<div class="note" style="margin-top:0">Ejecuta la simulación para ver la distribución de resultados.</div>'}</div>`;
+drawSensitivity(R);
+if(STATE.monteCarlo.last)renderMcStats(STATE.monteCarlo.last,STATE.monteCarlo.lastPerLever||{},STATE.monteCarlo.lastVarDecomp||{});}
+
+function drawSensitivity(R){
+  if(!document.getElementById('ch_tornado'))return;
+  const base=R.aggNpvExTerminal;
+  const Rlo=compute('low'),Rhi=compute('high');
+  const leverRows=R.active.map(p=>({
+    name:p.l.name,
+    lo:(Rlo.perLever.find(x=>x.l.id===p.l.id)?.npv??p.npv)-p.npv,
+    hi:(Rhi.perLever.find(x=>x.l.id===p.l.id)?.npv??p.npv)-p.npv
+  }));
+  const macroTests=[
+    ['WACC +1pp / −1pp',{waccShock:1},{waccShock:-1}],
+    ['Precio energía −10% / +10%',{priceShock:-0.10},{priceShock:0.10}],
+    ['Crecimiento ingresos −1pp / +1pp',{revGrowthShock:-1},{revGrowthShock:1}],
+    ['Coste inversión +20% / −20%',{capexShock:0.20},{capexShock:-0.20}],
+    ['Éxito ejecución −20% / +10%',{successMult:0.8},{successMult:1.1}],
+  ];
+  const macroRows=macroTests.map(([name,low,high])=>({
+    name,
+    lo:compute(RESULTS_VIEW.band||'base',low).aggNpvExTerminal-base,
+    hi:compute(RESULTS_VIEW.band||'base',high).aggNpvExTerminal-base
+  }));
+  const rows=[...leverRows,...macroRows].sort((a,b)=>Math.abs(b.hi-b.lo)-Math.abs(a.hi-a.lo));
+  Plotly.newPlot('ch_tornado',[
+    {type:'bar',orientation:'h',name:'Escenario adverso',x:rows.map(r=>r.lo),y:rows.map(r=>r.name),marker:{color:'rgba(220,53,69,0.7)'}},
+    {type:'bar',orientation:'h',name:'Escenario favorable',x:rows.map(r=>r.hi),y:rows.map(r=>r.name),marker:{color:'rgba(25,135,84,0.7)'}}
+  ],{barmode:'overlay',margin:{l:230,r:30,t:10,b:45},font:{family:'Inter',size:12},
+    xaxis:{title:'Cambio en VAN vs base (€M)',zeroline:true,zerolinecolor:'#aaa',gridcolor:'rgba(12,35,60,.06)'},
+    legend:{orientation:'h',y:-0.18},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},
+    {displayModeBar:false,responsive:true});}
+
 function rng(seed){let s=seed%2147483647;if(s<=0)s+=2147483646;return()=>((s=s*16807%2147483647)-1)/2147483646;}
 function triangular(rand,lo,mode,hi){if(hi<=lo)return mode;const u=rand(),c=(mode-lo)/(hi-lo);return u<c?lo+Math.sqrt(u*(hi-lo)*(mode-lo)):hi-Math.sqrt((1-u)*(hi-lo)*(hi-mode));}
 function gauss(rand){let u=0,v=0;while(u===0)u=rand();while(v===0)v=rand();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
-function runMonteCarlo(){STATE.monteCarlo.iterations=num(document.getElementById('mc_iter').value,750);STATE.monteCarlo.seed=num(document.getElementById('mc_seed').value,42);const p=STATE.monteCarlo.params;const random=rng(STATE.monteCarlo.seed);const levers=STATE.levers.filter(l=>l.active);let vals=[];
- for(let i=0;i<STATE.monteCarlo.iterations;i++){
-  const leverDraws={};levers.forEach(l=>{const lo=Math.min(l.d.low,l.d.base,l.d.high),hi=Math.max(l.d.low,l.d.base,l.d.high),mode=l.d.base;leverDraws[l.id]=triangular(random,lo,mode,hi);});
-  const z=gauss(random);const priceShock=z*(p.priceShockSigma||8)/100;
-  const successPct=(p.successMin||75)/100+random()*((p.successMax||110)-(p.successMin||75))/100;
-  const capMin=(p.capexShockMin||-15)/100,capMax=(p.capexShockMax||50)/100;
-  const cap=capMin+random()*(capMax-capMin);
-  const w=gauss(random)*(p.waccSigma||0.8);
-  vals.push(compute('base',{leverDraws,priceShock,successMult:successPct,capexShock:cap,waccShock:w}).aggNpv);
- }
- vals.sort((a,b)=>a-b);STATE.monteCarlo.last=vals;renderMcStats(vals);}
+
+function runMonteCarlo(){
+  STATE.monteCarlo.iterations=num(document.getElementById('mc_iter').value,750);
+  STATE.monteCarlo.seed=num(document.getElementById('mc_seed').value,42);
+  const p=STATE.monteCarlo.params;
+  const random=rng(STATE.monteCarlo.seed);
+  const levers=STATE.levers.filter(l=>l.active);
+  let vals=[],perLeverVals={};
+  levers.forEach(l=>perLeverVals[l.id]=[]);
+  for(let i=0;i<STATE.monteCarlo.iterations;i++){
+    const leverDraws={};levers.forEach(l=>{const lo=Math.min(l.d.low,l.d.base,l.d.high),hi=Math.max(l.d.low,l.d.base,l.d.high);leverDraws[l.id]=triangular(random,lo,l.d.base,hi);});
+    const priceShock=gauss(random)*(p.priceShockSigma||8)/100;
+    const successPct=(p.successMin||75)/100+random()*((p.successMax||110)-(p.successMin||75))/100;
+    const cap=(p.capexShockMin||-15)/100+random()*((p.capexShockMax||50)-(p.capexShockMin||-15))/100;
+    const w=gauss(random)*(p.waccSigma||0.8);
+    const R=compute('base',{leverDraws,priceShock,successMult:successPct,capexShock:cap,waccShock:w});
+    vals.push(R.aggNpv);
+    R.active.forEach(p2=>{if(perLeverVals[p2.l.id])perLeverVals[p2.l.id].push(p2.npv);});
+  }
+  // Variance decomposition: each source independently
+  function variance(arr){const m=arr.reduce((a,b)=>a+b,0)/arr.length;return arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length;}
+  const r2=rng(STATE.monteCarlo.seed+1);const N=Math.min(400,STATE.monteCarlo.iterations);
+  const vLevers=[],vPrice=[],vSuccess=[],vCapex=[],vWacc=[];
+  for(let i=0;i<N;i++){
+    const ld={};levers.forEach(l=>{const lo=Math.min(l.d.low,l.d.base,l.d.high),hi=Math.max(l.d.low,l.d.base,l.d.high);ld[l.id]=triangular(r2,lo,l.d.base,hi);});
+    const ps=gauss(r2)*(p.priceShockSigma||8)/100;
+    const su=(p.successMin||75)/100+r2()*((p.successMax||110)-(p.successMin||75))/100;
+    const ca=(p.capexShockMin||-15)/100+r2()*((p.capexShockMax||50)-(p.capexShockMin||-15))/100;
+    const wk=gauss(r2)*(p.waccSigma||0.8);
+    vLevers.push(compute('base',{leverDraws:ld}).aggNpv);
+    vPrice.push(compute('base',{priceShock:ps}).aggNpv);
+    vSuccess.push(compute('base',{successMult:su}).aggNpv);
+    vCapex.push(compute('base',{capexShock:ca}).aggNpv);
+    vWacc.push(compute('base',{waccShock:wk}).aggNpv);
+  }
+  const varDecomp={'Mejora de palancas':variance(vLevers),'Precio energía/carbono':variance(vPrice),'Éxito de implantación':variance(vSuccess),'Sobrecoste inversión':variance(vCapex),'Coste de capital':variance(vWacc)};
+  vals.sort((a,b)=>a-b);
+  Object.keys(perLeverVals).forEach(k=>perLeverVals[k].sort((a,b)=>a-b));
+  STATE.monteCarlo.last=vals;STATE.monteCarlo.lastPerLever=perLeverVals;STATE.monteCarlo.lastVarDecomp=varDecomp;
+  renderMcStats(vals,perLeverVals,varDecomp);}
+
 function percentile(vals,p){if(!vals.length)return 0;const i=(vals.length-1)*p,l=Math.floor(i),u=Math.ceil(i);return vals[l]+(vals[u]-vals[l])*(i-l);}
-function renderMcStats(vals){const mean=vals.reduce((a,b)=>a+b,0)/vals.length,med=percentile(vals,0.5),p5=percentile(vals,0.05),p95=percentile(vals,0.95),prob=vals.filter(x=>x>0).length/vals.length;const el=document.getElementById('mc_stats');if(el)el.innerHTML=`<div class="summary-row"><div class="summary-card"><div class="lbl">VAN medio</div><div class="value">${fmt(mean)}</div></div><div class="summary-card"><div class="lbl">Mediana</div><div class="value">${fmt(med)}</div></div><div class="summary-card"><div class="lbl">Rango P5–P95</div><div class="value" style="font-size:1.15rem">${fmt(p5)} – ${fmt(p95)}</div></div><div class="summary-card"><div class="lbl">Prob. VAN positivo</div><div class="value">${pct(prob)}</div></div></div>`;if(document.getElementById('ch_mc'))Plotly.newPlot('ch_mc',[{type:'histogram',x:vals,nbinsx:35,name:'Distribución VAN'}],{margin:{l:60,r:20,t:10,b:35},font:{family:'Inter',size:12},xaxis:{title:'VAN (€M)'},yaxis:{title:'Frecuencia'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}
+
+function renderMcStats(vals,perLeverVals={},varDecomp={}){
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length,med=percentile(vals,0.5),p5=percentile(vals,0.05),p95=percentile(vals,0.95),prob=vals.filter(x=>x>0).length/vals.length;
+  const el=document.getElementById('mc_results');if(!el)return;
+  const activeLevers=STATE.levers.filter(l=>l.active);
+  const perLeverRows=activeLevers.map(l=>{const lv=(perLeverVals[l.id]||[]);if(!lv.length)return '';const lp5=percentile(lv,0.05),lmed=percentile(lv,0.5),lp95=percentile(lv,0.95);return `<tr><td><b>${esc(l.name)}</b></td><td class="right" style="color:var(--red)">${fmt(lp5)}</td><td class="right">${fmt(lmed)}</td><td class="right" style="color:var(--green)">${fmt(lp95)}</td><td class="right strong">${fmt(lp95-lp5)}</td></tr>`;}).join('');
+  const totalVar=Object.values(varDecomp).reduce((a,b)=>a+b,0)||1;
+  el.innerHTML=`<div class="card"><h3>Resultados de la simulación (${vals.length} iteraciones)</h3>
+  <div class="summary-row">
+    <div class="summary-card"><div class="lbl">VAN medio</div><div class="value">${fmt(mean)}</div><div class="sub">Promedio de los ${vals.length} escenarios</div></div>
+    <div class="summary-card"><div class="lbl">Mediana (P50)</div><div class="value">${fmt(med)}</div><div class="sub">50% de escenarios por encima</div></div>
+    <div class="summary-card" style="border-left-color:var(--red)"><div class="lbl">P5 — caso muy adverso</div><div class="value">${fmt(p5)}</div><div class="sub">Solo un 5% de escenarios queda por debajo</div></div>
+    <div class="summary-card" style="border-left-color:var(--green)"><div class="lbl">P95 — caso muy favorable</div><div class="value">${fmt(p95)}</div><div class="sub">Solo un 5% de escenarios supera este valor</div></div>
+    <div class="summary-card" style="border-left-color:var(--cobalt)"><div class="lbl">Probabilidad VAN > 0</div><div class="value">${pct(prob)}</div><div class="sub">Fracción de escenarios rentables</div></div>
+  </div>
+  <div id="ch_mc" class="chart"></div>
+  <div class="note"><b>Lectura:</b> el intervalo P5–P95 cubre el 90% de los escenarios simulados. Si el P5 es positivo, el proyecto es rentable incluso en condiciones muy adversas.</div>
+  </div>
+  ${Object.keys(varDecomp).length?`<div class="card"><h3>¿De dónde viene la incertidumbre?</h3><div class="note">Varianza del VAN atribuible a cada fuente de incertidumbre por separado. Indica qué supuestos conviene validar más antes de presentar el caso.</div><div id="ch_varimport" class="chart" style="height:220px"></div></div>`:''}
+  ${perLeverRows?`<div class="card"><h3>Distribución por palanca</h3><div class="tbl-wrap"><table><thead><tr><th>Palanca</th><th class="right">P5 (adverso)</th><th class="right">P50 (mediana)</th><th class="right">P95 (favorable)</th><th class="right">Rango P5–P95</th></tr></thead><tbody>${perLeverRows}</tbody></table></div><div class="note">Un rango P5–P95 amplio indica que esa palanca es sensible a sus supuestos de mejora. Conviene revisar la fuente o reducir la banda.</div></div>`:''}`;
+  Plotly.newPlot('ch_mc',[
+    {type:'histogram',x:vals,nbinsx:40,name:'Distribución VAN',marker:{color:'rgba(0,80,160,0.55)',line:{color:'rgba(0,80,160,0.9)',width:1}}},
+    {type:'scatter',mode:'lines',name:`P5 ${fmt(p5)}`,x:[p5,p5],y:[0,vals.length/8],line:{color:'#dc3545',dash:'dash',width:2}},
+    {type:'scatter',mode:'lines',name:`P95 ${fmt(p95)}`,x:[p95,p95],y:[0,vals.length/8],line:{color:'#198754',dash:'dash',width:2}}
+  ],{margin:{l:60,r:20,t:10,b:45},font:{family:'Inter',size:12},xaxis:{title:'VAN (€M)',gridcolor:'rgba(12,35,60,.06)'},yaxis:{title:'Frecuencia'},legend:{orientation:'h'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});
+  if(document.getElementById('ch_varimport')){
+    const sorted=Object.entries(varDecomp).sort((a,b)=>b[1]-a[1]);
+    Plotly.newPlot('ch_varimport',[{type:'bar',orientation:'h',x:sorted.map(([,v])=>+(v/totalVar*100).toFixed(1)),y:sorted.map(([k])=>k),text:sorted.map(([,v])=>`${(v/totalVar*100).toFixed(0)}%`),textposition:'outside',marker:{color:'rgba(0,80,160,0.65)'}}],{margin:{l:190,r:60,t:10,b:35},font:{family:'Inter',size:12},xaxis:{title:'% de varianza explicada',range:[0,120],gridcolor:'rgba(12,35,60,.06)'},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'},{displayModeBar:false,responsive:true});}}
 /* ============================ INVESTMENT CASE ============================ */
 function renderCase(c){const R=compute(),irrAgg=irr(R.aggFcf),pay=payback(R.aggFcf);const rec=R.aggNpv>0&&irrAgg!=null&&irrAgg>R.wacc?'Invertir':R.aggNpv>0?'Revisar supuestos':'Descartar o rediseñar';c.innerHTML=`<h2 class="section-title">13 · Investment case</h2><p class="section-lead">Resumen ejecutivo para comité: decisión, retorno, caja, valoración, riesgos y exportación.</p>
 <div class="summary-row"><div class="summary-card"><div class="lbl">Recomendación</div><div class="value" style="font-size:1.35rem">${rec}</div><div class="sub">Basada en VAN, TIR y calidad de inputs</div></div><div class="summary-card"><div class="lbl">Valor actual neto</div><div class="value">${fmt(R.aggNpv)}</div></div><div class="summary-card"><div class="lbl">TIR</div><div class="value">${irrAgg==null?'—':fmtp(irrAgg)}</div></div><div class="summary-card"><div class="lbl">Payback</div><div class="value">${pay||'—'} años</div></div></div>
